@@ -25,6 +25,7 @@ interface Window {
 		narrate(req: {project: string; text: string; name: string; voice: string; provider: 'edge' | 'say'}): Promise<NarrationResult>;
 		commonsSearch(query: string): Promise<CommonsResult[]>;
 		commonsAdd(name: string, title: string): Promise<{file: string; license: string; notes: string[]; project: ProjectDetail}>;
+		peaks(project: string, src: string, beats: boolean): Promise<Peaks>;
 		loadEdit(project: string): Promise<{doc: EditDoc; created: boolean; slug: string}>;
 		saveEdit(project: string, doc: EditDoc): Promise<boolean>;
 		exportEdit(project: string, format: string, name: string): Promise<{file: string; config: string}>;
@@ -39,6 +40,7 @@ interface Window {
 
 // Motion Studio source is imported by path alias; it is type-checked in its own repo.
 declare module '@motion/*';
+type Peaks = {duration: number; per_second: number; peaks: number[]; bpm?: number; beats?: number[]; downbeats?: number[]};
 type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; clips: EditClip[]};
 type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};

@@ -141,3 +141,9 @@ button.pad{align-self:flex-start;white-space:normal;text-align:left}
 .clip span{overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .clip .grip{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;background:#ffffff33}
 .playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;z-index:3}
+
+.wave{position:absolute;inset:0;width:100%;height:100%;opacity:.75;pointer-events:none}
+.clip span{position:relative;text-shadow:0 1px 2px #000}
+.beat{position:absolute;bottom:0;width:1px;height:6px;background:var(--teal);opacity:.7;pointer-events:none}
+.beat.down{height:12px;opacity:1}
+.tbar button[aria-pressed=true]{color:var(--teal);border-color:var(--teal)}

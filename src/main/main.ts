@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {loadEdit, saveEdit} from './edit';
 import {engine} from './engine';
-import {getTemplates, motionDir, render, type RenderRequest} from './motion';
+import {getTemplates, motionDir, projectSlug, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
 import {addToKit, copyToInbox, getLibrary, getProject, listProjects, projectPath} from './store';
 
@@ -76,6 +76,12 @@ const registerIpc = () => {
 		need(isProjectName(name) && typeof title === 'string' && title.length <= 300, 'bad request');
 		const res = await engine<{file: string; license: string; notes: string[]}>(['commons', title as string, '--add', name as string], 180_000);
 		return {...res, project: getProject(name as string)};
+	});
+	ipcMain.handle('media:peaks', async (_e, name: unknown, src: unknown, beats: unknown) => {
+		need(isProjectName(name) && typeof src === 'string', 'bad request');
+		const prefix = `projects/${projectSlug(name as string)}/`;
+		need((src as string).startsWith(prefix), 'not a file of this project');
+		return engine(['peaks', projectPath(name as string, (src as string).slice(prefix.length)), '--per-second', '40', ...(beats ? ['--beats'] : [])], 300_000);
 	});
 	ipcMain.handle('edit:load', (_e, name: unknown) => {
 		need(isProjectName(name), 'not a valid project name');

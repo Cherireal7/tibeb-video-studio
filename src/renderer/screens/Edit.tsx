@@ -18,6 +18,33 @@ const formSchema = (kind: string): JsonSchema => {
 	const {id: _id, kind: _kind, ...properties} = s.properties ?? {};
 	return {...s, properties, required: (s.required ?? []).filter((k) => k !== 'id' && k !== 'kind')};
 };
+// Waveforms and beats are measured once per file by the engine and remembered for the session.
+const peakCache = new Map<string, Promise<Peaks>>();
+const loadPeaks = (project: string, src: string, beats: boolean) => {
+	const key = `${project}|${src}|${beats}`;
+	if (!peakCache.has(key)) peakCache.set(key, window.tibeb.peaks(project, src, beats).catch(() => ({duration: 0, per_second: 40, peaks: []})));
+	return peakCache.get(key)!;
+};
+
+/** The part of a file's waveform that a clip plays (from `in` for `length` seconds), stretched to the clip. */
+const Wave = ({project, clip, color}: {project: string; clip: EditClip; color: string}) => {
+	const [p, setP] = useState<Peaks | null>(null);
+	const src = String(clip.src ?? '');
+	useEffect(() => {
+		let live = true;
+		if (src.startsWith('projects/')) void loadPeaks(project, src, false).then((x) => live && setP(x));
+		return () => { live = false; };
+	}, [project, src]);
+	if (!p || !p.peaks.length) return null;
+	const a = Math.floor(Number(clip.in ?? 0) * p.per_second), b = Math.ceil((Number(clip.in ?? 0) + clip.length) * p.per_second);
+	const part = p.peaks.slice(a, Math.max(a + 1, b));
+	const step = Math.max(1, Math.ceil(part.length / 600));
+	const pts = Array.from({length: Math.ceil(part.length / step)}, (_, i) => Math.max(...part.slice(i * step, (i + 1) * step)));
+	const n = Math.max(1, Math.round((clip.length * p.per_second) / step));
+	const d = pts.map((v, i) => `M${i} ${(0.5 - v * 0.46).toFixed(3)}V${(0.5 + v * 0.46).toFixed(3)}`).join('');
+	return <svg className="wave" viewBox={`0 0 ${n} 1`} preserveAspectRatio="none" aria-hidden="true"><path d={d} stroke={color} strokeWidth={1.2} vectorEffect="non-scaling-stroke" fill="none" /></svg>;
+};
+
 const label = (c: EditClip) => (c.kind === 'text' ? String(c.text) : String(c.src ?? '').split('/').pop() ?? c.id);
 
 type Sel = {track: string; clip: string} | null;
@@ -33,6 +60,8 @@ const Edit = ({initial}: {initial: string}) => {
 	const [sel, setSel] = useState<Sel>(null);
 	const [frame, setFrame] = useState(0);
 	const [pps, setPps] = useState(70);
+	const [beatInfo, setBeatInfo] = useState<{bpm: number; times: number[]; down: number[]}>({bpm: 0, times: [], down: []});
+	const [snapBeats, setSnapBeats] = useState(true);
 	const [status, setStatus] = useState('');
 	const [problem, setProblem] = useState('');
 	const [render, setRender] = useState<{busy: boolean; percent: number; file: string}>({busy: false, percent: 0, file: ''});
@@ -109,6 +138,24 @@ const Edit = ({initial}: {initial: string}) => {
 	const mapClip = (d: EditDoc, s: NonNullable<Sel>, fn: (c: EditClip) => EditClip | EditClip[] | null): EditDoc => ({
 		...d, tracks: d.tracks.map((t) => (t.id !== s.track ? t : {...t, clips: t.clips.flatMap((c) => (c.id !== s.clip ? [c] : (fn(c) ?? []) as EditClip | EditClip[]))})),
 	});
+	// Beats of the first music clip, placed on the timeline (file time shifted by the clip's start and trim).
+	const musicClip = useMemo(() => doc?.tracks.find((t) => t.id === 'music')?.clips[0] ?? doc?.tracks.filter((t) => t.kind === 'audio').flatMap((t) => t.clips).find((c) => /music/i.test(String(c.src))) ?? null, [doc]);
+	const musicKey = musicClip ? `${musicClip.src}|${musicClip.start}|${musicClip.in}|${musicClip.length}` : '';
+	useEffect(() => {
+		if (!musicClip || !String(musicClip.src).startsWith('projects/')) return setBeatInfo({bpm: 0, times: [], down: []});
+		let live = true;
+		const place = (list: number[] = []) => list.map((b) => musicClip.start + b - Number(musicClip.in ?? 0)).filter((t) => t >= musicClip.start && t <= musicClip.start + musicClip.length);
+		void loadPeaks(project, String(musicClip.src), true).then((p) => live && setBeatInfo({bpm: p.bpm ?? 0, times: place(p.beats), down: place(p.downbeats)}));
+		return () => { live = false; };
+	}, [project, musicKey]);
+	/** Times snap to a beat when one is close (and the toggle is on), otherwise to 1/20 s. */
+	const snapT = useCallback((t: number) => {
+		if (snapBeats && beatInfo.times.length) {
+			const near = beatInfo.times.reduce((best, b) => (Math.abs(b - t) < Math.abs(best - t) ? b : best), beatInfo.times[0]);
+			if (Math.abs(near - t) < 0.14) return Math.max(0, Math.round(near * 1000) / 1000);
+		}
+		return snap(t);
+	}, [snapBeats, beatInfo]);
 	const selected = useMemo(() => (doc && sel ? doc.tracks.find((t) => t.id === sel.track)?.clips.find((c) => c.id === sel.clip) ?? null : null), [doc, sel]);
 	const now = frame / FPS;
 	const newId = (d: EditDoc, p: string) => {
@@ -120,7 +167,7 @@ const Edit = ({initial}: {initial: string}) => {
 
 	const split = () => {
 		if (!doc || !sel || !selected || now <= selected.start + 0.1 || now >= selected.start + selected.length - 0.1) return;
-		const cut = snap(now) - selected.start;
+		const cut = snapT(now) - selected.start;
 		change((d) => mapClip(d, sel, (c) => [{...c, length: cut}, {...c, id: newId(d, c.id.replace(/\d+$/, '') || 'c'), start: c.start + cut, length: c.length - cut, ...(typeof c.in === 'number' ? {in: c.in + cut} : {})}]));
 	};
 	const remove = () => {
@@ -156,7 +203,7 @@ const Edit = ({initial}: {initial: string}) => {
 		const g = drag.current;
 		if (!g) return;
 		const dt = (e.clientX - g.x0) / pps;
-		setDoc((d) => d && mapClip(d, g, (c) => (g.mode === 'move' ? {...c, start: snap(g.start0 + dt)} : {...c, length: Math.max(0.2, snap(g.length0 + dt))})));
+		setDoc((d) => d && mapClip(d, g, (c) => (g.mode === 'move' ? {...c, start: snapT(g.start0 + dt)} : {...c, length: Math.max(0.2, snapT(g.start0 + g.length0 + dt) - g.start0)})));
 	};
 	const onPointerUp = () => {
 		const g = drag.current;
@@ -247,6 +294,8 @@ const Edit = ({initial}: {initial: string}) => {
 					<option value="">Add from project…</option>
 					{files.filter((f) => /\.(png|jpe?g|webp|mp4|mov|m4v|webm|wav|mp3|m4a|aac)$/i.test(f.file) && f.kind !== 'export').map((f) => <option key={f.file} value={f.file}>{f.file}</option>)}
 				</select>
+				<button aria-pressed={snapBeats} disabled={!beatInfo.times.length} onClick={() => setSnapBeats(!snapBeats)} title="Moves, trims and splits land on the music's beats">
+					{beatInfo.times.length ? `Snap to beat · ${Math.round(beatInfo.bpm)} BPM` : 'No beat found'}</button>
 				<div className="grow" />
 				<span className="dim small">{now.toFixed(2)} s</span>
 				<label className="dim small row">Zoom<input type="range" min={20} max={220} value={pps} onChange={(e) => setPps(Number(e.target.value))} /></label>
@@ -255,7 +304,8 @@ const Edit = ({initial}: {initial: string}) => {
 				<div className="lanes" style={{width: width + 120}}>
 					<div className="lane ruler" onPointerDown={(e) => seek((e.clientX - e.currentTarget.getBoundingClientRect().left - 120) / pps)}>
 						<div className="tname" />
-						<div className="track">{Array.from({length: Math.ceil(doc.duration) + 1}, (_, i) => <span key={i} className="tick" style={{left: i * pps}}>{i}s</span>)}</div>
+						<div className="track">{Array.from({length: Math.ceil(doc.duration) + 1}, (_, i) => <span key={i} className="tick" style={{left: i * pps}}>{i}s</span>)}
+							{pps >= 40 ? beatInfo.times.map((b) => <i key={b} className={`beat${beatInfo.down.some((x) => Math.abs(x - b) < 0.02) ? ' down' : ''}`} style={{left: b * pps}} />) : beatInfo.down.map((b) => <i key={b} className="beat down" style={{left: b * pps}} />)}</div>
 					</div>
 					{doc.tracks.map((t) => (
 						<div key={t.id} className="lane">
@@ -266,6 +316,7 @@ const Edit = ({initial}: {initial: string}) => {
 									<div key={c.id} className={`clip${sel?.clip === c.id && sel.track === t.id ? ' on' : ''}`} title={label(c)}
 										style={{left: c.start * pps, width: Math.max(8, c.length * pps - 2), background: `${COLORS[t.kind]}3a`, borderColor: COLORS[t.kind]}}
 										onPointerDown={(e) => startDrag(e, t.id, c, 'move')}>
+										{t.kind === 'audio' || c.kind === 'video' ? <Wave project={project} clip={c} color={COLORS[t.kind]} /> : null}
 										<span>{label(c)}</span>
 										<i className="grip" onPointerDown={(e) => startDrag(e, t.id, c, 'trim')} />
 									</div>
