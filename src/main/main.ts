@@ -5,7 +5,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {askAssistant, stopAssistant} from './assistant';
-import {loadEdit, saveEdit, watchEdit} from './edit';
+import {listNarrations, loadEdit, saveEdit, watchEdit} from './edit';
 import {engine} from './engine';
 import {getTemplates, motionDir, projectSlug, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
@@ -95,6 +95,10 @@ const registerIpc = () => {
 	ipcMain.handle('edit:load', (_e, name: unknown) => {
 		need(isProjectName(name), 'not a valid project name');
 		return loadEdit(name as string);
+	});
+	ipcMain.handle('edit:narrations', (_e, name: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		return listNarrations(name as string);
 	});
 	ipcMain.handle('edit:watch', (e, name: unknown) => {
 		need(isProjectName(name), 'not a valid project name');

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('tibeb', {
 	commonsAdd: (name: string, title: string) => call('commons:add', name, title),
 	balance: (project: string, src: string, time: number) => call('media:balance', project, src, time),
 	peaks: (project: string, src: string, beats: boolean) => call('media:peaks', project, src, beats),
+	narrations: (project: string) => call('edit:narrations', project),
 	loadEdit: (project: string) => call('edit:load', project),
 	saveEdit: (project: string, doc: unknown) => call('edit:save', project, doc),
 	capcutCreate: (project: string, format: string) => call('capcut:create', project, format),

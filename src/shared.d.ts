@@ -27,6 +27,7 @@ interface Window {
 		commonsAdd(name: string, title: string): Promise<{file: string; license: string; notes: string[]; project: ProjectDetail}>;
 		balance(project: string, src: string, time: number): Promise<{balance: number[]; notes: string[]}>;
 		peaks(project: string, src: string, beats: boolean): Promise<Peaks>;
+		narrations(project: string): Promise<{name: string; audio: string; duration: number; words: {text: string; start: number; end: number; cue: number}[]}[]>;
 		loadEdit(project: string): Promise<{doc: EditDoc; created: boolean; slug: string}>;
 		saveEdit(project: string, doc: EditDoc): Promise<boolean>;
 		capcutCreate(project: string, format: string): Promise<{name: string; editable_titles: number; next: string}>;
@@ -60,6 +61,6 @@ type CapcutPull = {draft: string; summary: string; changes: {clip: string; field
 type ObsStatus = {connected: boolean; message?: string; recording?: boolean; scene?: string; records_into_library?: boolean; [k: string]: unknown};
 type Delivery = {shape: string; width: number; height: number; duration: number; lufs: number | null; megabytes: number; ready: boolean; checks: DoctorCheck[]};
 type AssistantEvent = {type: 'text'; text: string} | {type: 'tool'; name: string} | {type: 'done'; session: string; ok: boolean; note: string};
-type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
+type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio' | 'captions'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; duck?: {under: string; amount: number; ranges?: [number, number][]}; clips: EditClip[]};
-type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};
+type EditDoc = {version: 1; duration: number; background: string; paper?: 'none' | 'light' | 'dark'; credit?: string; tracks: EditTrack[]};

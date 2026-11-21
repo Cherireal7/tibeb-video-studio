@@ -1,14 +1,16 @@
 import {createHash} from 'node:crypto';
-import {type FSWatcher, existsSync, readFileSync, watch, writeFileSync} from 'node:fs';
+import {type FSWatcher, existsSync, readFileSync, readdirSync, watch, writeFileSync} from 'node:fs';
 import {linkProjectMedia, projectSlug} from './motion';
 import {getProject, projectPath} from './store';
 
 export type EditClip = {id: string; start: number; length: number; kind: string; [key: string]: unknown};
 export type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; clips: EditClip[]};
-export type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};
+export type EditDoc = {version: 1; duration: number; background: string; paper?: string; credit?: string; tracks: EditTrack[]};
 
-const media = (kind: 'video' | 'image', id: string, src: string, start: number, length: number): EditClip =>
-	({id, start, length, kind, src, in: 0, volume: 1, fit: 'cover', scale: 1, x: 0, y: 0, opacity: 1, zoom: kind === 'image' ? 0.08 : 0});
+// Pictures start as taped cut-outs on paper (the editorial look); footage fills the frame.
+const media = (kind: 'video' | 'image', id: string, src: string, start: number, length: number, n = 0): EditClip =>
+	({id, start, length, kind, src, in: 0, volume: 1, fit: 'cover', scale: 1, x: 0, y: kind === 'image' ? -8 : 0, opacity: 1, zoom: 0,
+		...(kind === 'image' ? {frame: 'tape', frameWidth: 72, rotate: n % 2 ? 3 : -3} : {})});
 const audio = (id: string, src: string, length: number, volume: number): EditClip =>
 	({id, start: 0, length, kind: 'audio', src, in: 0, volume, fadeIn: 0.3, fadeOut: 1});
 
@@ -24,16 +26,16 @@ export const defaultEdit = (project: string): EditDoc => {
 		t += len;
 	}
 	for (const f of p.files.filter((x) => (x.kind === 'image' || x.kind === 'map') && /\.(png|jpe?g|webp)$/i.test(x.file))) {
-		picture.push(media('image', `v${picture.length + 1}`, prefix + f.file, t, 3));
+		picture.push(media('image', `v${picture.length + 1}`, prefix + f.file, t, 3, picture.length));
 		t += 3;
 	}
 	const voice = p.files.filter((x) => x.kind === 'voice' && /\.(wav|mp3|m4a)$/i.test(x.file)).slice(0, 1);
 	const music = p.files.filter((x) => x.kind === 'music' && /\.(wav|mp3|m4a)$/i.test(x.file)).slice(0, 1);
 	const duration = Math.max(5, Math.round(Math.max(t, voice[0]?.duration ?? 0) * 10) / 10);
 	return {
-		version: 1, duration, background: '#101014',
+		version: 1, duration, background: '#EFEAE0', paper: 'light',
 		tracks: [
-			{id: 'text', name: 'Text', kind: 'text', clips: [{id: 't1', start: 0.3, length: Math.min(3, duration - 0.5), kind: 'text', text: project, style: 'headline', motion: 'rise', size: 8, color: '#FFFFFF', accent: '#FB7A3C', x: 50, y: 22, align: 'center'}]},
+			{id: 'text', name: 'Text', kind: 'text', clips: [{id: 't1', start: 0.3, length: Math.min(3, duration - 0.5), kind: 'text', text: project, style: 'editorial', motion: 'rise', size: 8, color: '#16150F', accent: '#F5C451', x: 50, y: 14, align: 'center'}]},
 			{id: 'video', name: 'Video', kind: 'video', clips: picture},
 			{id: 'voice', name: 'Voice', kind: 'audio', clips: voice.map((f, i) => audio(`n${i + 1}`, prefix + f.file, Math.min(duration, f.duration ?? duration), 1))},
 			{id: 'music', name: 'Music', kind: 'audio', clips: music.map((f, i) => audio(`m${i + 1}`, prefix + f.file, duration, 0.35))},
@@ -100,4 +102,32 @@ export const watchEdit = (project: string, onChange: () => void): void => {
 			}
 		}, 350);
 	});
+};
+
+export type Narration = {name: string; audio: string; duration: number; words: {text: string; start: number; end: number; cue: number}[]};
+
+/** Narrations made for a project (prep/*.narration.json, or the older narration-*.json): audio path plus word timings. */
+export const listNarrations = (project: string): Narration[] => {
+	const dir = projectPath(project, 'prep');
+	const prefix = `projects/${projectSlug(project)}/`;
+	const out: Narration[] = [];
+	let names: string[] = [];
+	try {
+		names = readdirSync(dir).filter((f) => /narration.*\.json$/.test(f));
+	} catch {
+		return out;
+	}
+	for (const f of names) {
+		try {
+			const d = JSON.parse(readFileSync(projectPath(project, `prep/${f}`), 'utf8')) as {audio?: string; duration?: number; words?: {text: string; start: number; end: number; line?: number; cue?: number}[]};
+			const name = f.replace(/\.narration\.json$|\.json$/g, '');
+			const wav = d.audio ? `voice/${d.audio.split('/').pop()}` : `voice/${name}.wav`;
+			if (!d.words?.length || !existsSync(projectPath(project, wav))) continue;
+			out.push({name, audio: prefix + wav, duration: d.duration ?? d.words[d.words.length - 1].end + 1,
+				words: d.words.map((w) => ({text: String(w.text).slice(0, 40), start: w.start, end: w.end, cue: w.cue ?? w.line ?? 0}))});
+		} catch {
+			// not a narration file we understand
+		}
+	}
+	return out;
 };

@@ -1,5 +1,5 @@
 import {Timeline} from '@motion/compositions/Timeline';
-import {audioClipSchema, mediaClipSchema, textClipSchema, timelineSchema} from '@motion/schemas/Timeline';
+import {audioClipSchema, captionsClipSchema, mediaClipSchema, textClipSchema, timelineSchema} from '@motion/schemas/Timeline';
 import {Player, type PlayerRef} from '@remotion/player';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {z} from 'zod';
@@ -16,8 +16,8 @@ const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remo
 
 /** Inspector forms come from the same schemas the renderer validates with. */
 const formSchema = (kind: string): JsonSchema => {
-	const s = z.toJSONSchema(kind === 'text' ? textClipSchema : kind === 'audio' ? audioClipSchema : mediaClipSchema, {unrepresentable: 'any'}) as JsonSchema;
-	const {id: _id, kind: _kind, balance: _balance, wheels: _wheels, curve: _curve, keys: _keys, ...properties} = s.properties ?? {};
+	const s = z.toJSONSchema(kind === 'text' ? textClipSchema : kind === 'audio' ? audioClipSchema : kind === 'captions' ? captionsClipSchema : mediaClipSchema, {unrepresentable: 'any'}) as JsonSchema;
+	const {id: _id, kind: _kind, balance: _balance, wheels: _wheels, curve: _curve, keys: _keys, words: _words, ...properties} = s.properties ?? {};
 	return {...s, properties, required: (s.required ?? []).filter((k) => k !== 'id' && k !== 'kind')};
 };
 // Waveforms and beats are measured once per file by the engine and remembered for the session.
@@ -47,7 +47,7 @@ const Wave = ({project, clip, color, px}: {project: string; clip: EditClip; colo
 	return <svg className="wave" viewBox={`0 0 ${n} 1`} preserveAspectRatio="none" aria-hidden="true"><path d={d} stroke={color} strokeWidth={1.2} vectorEffect="non-scaling-stroke" fill="none" /></svg>;
 };
 
-const label = (c: EditClip) => (c.kind === 'text' ? String(c.text) : String(c.src ?? '').split('/').pop() ?? c.id);
+const label = (c: EditClip) => (c.kind === 'text' ? String(c.text) : c.kind === 'captions' ? `Captions · ${(c.words as unknown[] | undefined)?.length ?? 0} words` : String(c.src ?? '').split('/').pop() ?? c.id);
 
 type Sel = {track: string; clip: string} | null;
 type Drag = {track: string; clip: string; mode: 'move' | 'trim'; x0: number; start0: number; length0: number; before: EditDoc};
@@ -68,6 +68,7 @@ const Edit = ({initial}: {initial: string}) => {
 	const [problem, setProblem] = useState('');
 	const [render, setRender] = useState<{busy: boolean; percent: number; file: string}>({busy: false, percent: 0, file: ''});
 	const [side, setSide] = useState<'inspector' | 'assistant'>('inspector');
+	const [narrations, setNarrations] = useState<{name: string; audio: string; duration: number; words: {text: string; start: number; end: number; cue: number}[]}[]>([]);
 	const latest = useRef<EditDoc | null>(null);
 	const past = useRef<EditDoc[]>([]);
 	const future = useRef<EditDoc[]>([]);
@@ -89,6 +90,7 @@ const Edit = ({initial}: {initial: string}) => {
 		setSel(null);
 		past.current = [];
 		future.current = [];
+		void window.tibeb.narrations(project).then(setNarrations).catch(() => setNarrations([]));
 		Promise.all([window.tibeb.loadEdit(project), window.tibeb.project(project)]).then(([e, p]) => {
 			setDoc(e.doc);
 			setSlug(e.slug);
@@ -204,6 +206,30 @@ const Edit = ({initial}: {initial: string}) => {
 		return {...d, tracks: d.tracks.map((t) => (t.id !== track.id ? t : {...t, clips: [...t.clips, {id, start: snap(now), length: Math.min(3, Math.max(0.5, d.duration - now)), kind: 'text', text: 'New text', style: 'headline', motion: 'rise', size: 8, color: '#FFFFFF', accent: '#FB7A3C', x: 50, y: 50, align: 'center'}]})),
 		};
 	});
+	const paperInk = doc?.paper === 'light' ? '#16150F' : '#FFFFFF';
+	/** A stamp or a handwritten note at the playhead (the paper look's two kinds of label). */
+	const addBoxed = (box: 'stamp' | 'note') => change((d) => {
+		const track = d.tracks.find((t) => t.kind === 'text') ?? d.tracks[0];
+		const id = newId(d, box === 'stamp' ? 's' : 'n');
+		setSel({track: track.id, clip: id});
+		const clip: EditClip = {id, start: snapT(now), length: Math.min(3, Math.max(0.5, d.duration - now)), kind: 'text', text: box === 'stamp' ? 'Place · 2026' : 'look at this →',
+			style: 'headline', motion: 'pop', size: box === 'stamp' ? 5 : 5.5, color: box === 'stamp' ? '#B3261E' : paperInk, accent: '#F5C451', x: box === 'stamp' ? 68 : 32, y: box === 'stamp' ? 30 : 16, align: 'center', box, rotate: box === 'stamp' ? 6 : -3};
+		return {...d, tracks: d.tracks.map((t) => (t.id !== track.id ? t : {...t, clips: [...t.clips, clip]}))};
+	});
+	/** Put a narration on the voice track and its spoken-word captions on the text track, both at the start. */
+	const addNarration = (name: string) => {
+		const n = narrations.find((x) => x.name === name);
+		if (!n) return;
+		change((d) => {
+			const voice = d.tracks.find((t) => t.id === 'voice') ?? d.tracks.find((t) => t.kind === 'audio');
+			const text = d.tracks.find((t) => t.kind === 'text');
+			if (!voice || !text) return d;
+			const a: EditClip = {id: newId(d, 'n'), start: 0, length: Math.round(n.duration * 100) / 100, kind: 'audio', src: n.audio, in: 0, volume: 1, fadeIn: 0, fadeOut: 0.3};
+			const c: EditClip = {id: newId(d, 'cap'), start: 0, length: Math.round(n.duration * 100) / 100, kind: 'captions', accent: '#F5C451', tone: d.paper === 'light' ? 'light' : 'dark', words: n.words};
+			return {...d, duration: Math.max(d.duration, Math.ceil(n.duration * 10) / 10), tracks: d.tracks.map((t) => (t.id === voice.id ? {...t, clips: [...t.clips, a]} : t.id === text.id ? {...t, clips: [...t.clips, c]} : t))};
+		});
+		setStatus(`Added “${name}” with ${n.words.length} spoken words as captions.`);
+	};
 	const addFile = (rel: string) => {
 		const f = files.find((x) => x.file === rel);
 		if (!f || !doc) return;
@@ -432,6 +458,7 @@ const Edit = ({initial}: {initial: string}) => {
 							<div className="fields">
 								<label className="field"><span>Length (seconds)</span><input type="number" min={1} max={3600} step={0.5} value={doc.duration} onChange={(e) => change((d) => ({...d, duration: Math.max(1, Number(e.target.value) || 1)}))} /></label>
 								<label className="field"><span>Background</span><span className="color"><input type="color" value={doc.background} onChange={(e) => change((d) => ({...d, background: e.target.value}))} /><input value={doc.background} readOnly aria-label="Background value" /></span></label>
+								<label className="field"><span>Paper</span><select value={doc.paper ?? 'none'} onChange={(e) => change((d) => ({...d, paper: e.target.value as 'none' | 'light' | 'dark', background: e.target.value === 'light' ? '#EFEAE0' : e.target.value === 'dark' ? '#0D0D10' : d.background}))}><option value="none">None</option><option value="light">Light paper</option><option value="dark">Dark paper</option></select></label>
 								<label className="field wide"><span>End credit</span><input value={doc.credit ?? 'Edit by Cheri'} maxLength={40} onChange={(e) => change((d) => ({...d, credit: e.target.value}))} /></label>
 							</div>
 							<p className="dim small">Select a clip on the timeline to change it. Drag a clip to move it; drag its right edge to make it longer or shorter.</p>
@@ -443,6 +470,14 @@ const Edit = ({initial}: {initial: string}) => {
 				<button onClick={undo} disabled={!past.current.length}>Undo</button><button onClick={redo} disabled={!future.current.length}>Redo</button>
 				<button onClick={split} disabled={!selected}>Split at playhead</button><button onClick={remove} disabled={!selected}>Delete</button>
 				<button onClick={addText}>Add text</button>
+				<button onClick={() => addBoxed('stamp')} title="A red rubber stamp: places, dates, labels">Stamp</button>
+				<button onClick={() => addBoxed('note')} title="A handwritten note">Note</button>
+				{narrations.length ? (
+					<select aria-label="Add a narration with captions" value="" onChange={(e) => addNarration(e.target.value)}>
+						<option value="">Add narration + captions…</option>
+						{narrations.map((n) => <option key={n.name} value={n.name}>{n.name} ({Math.round(n.duration)} s)</option>)}
+					</select>
+				) : null}
 				<select aria-label="Add a project file at the playhead" value="" onChange={(e) => addFile(e.target.value)}>
 					<option value="">Add from project…</option>
 					{files.filter((f) => /\.(png|jpe?g|webp|mp4|mov|m4v|webm|wav|mp3|m4a|aac)$/i.test(f.file) && f.kind !== 'export').map((f) => <option key={f.file} value={f.file}>{f.file}</option>)}

@@ -63,3 +63,20 @@ test('project media is linked into Motion Studio only for this project and only 
 	assert.deepEqual(m.linkProjectMedia('Demo', {image: 'projects/demo/stills/a.png'}), ['stills/a.png']);
 	assert.throws(() => m.linkProjectMedia('Demo', {image: 'projects/demo/../../escape'}));
 });
+
+test('first cut uses the paper look and narrations are found with their words', () => {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const edit = require('./edit') as typeof import('./edit');
+	const doc = edit.defaultEdit('Demo');
+	assert.equal(doc.paper, 'light');
+	const pic = doc.tracks[1].clips[0];
+	assert.deepEqual([pic.kind, pic.frame, pic.src], ['image', 'tape', 'projects/demo/stills/a.png']);
+	mkdirSync(join(root, 'projects', 'Demo', 'prep'), {recursive: true});
+	mkdirSync(join(root, 'projects', 'Demo', 'voice'), {recursive: true});
+	writeFileSync(join(root, 'projects', 'Demo', 'voice', 'story.wav'), 'RIFF');
+	writeFileSync(join(root, 'projects', 'Demo', 'prep', 'story.narration.json'), JSON.stringify({audio: '/x/voice/story.wav', duration: 2, words: [{text: 'Hi', start: 0.2, end: 0.5, line: 0}, {text: 'there', start: 0.5, end: 0.9, line: 0}]}));
+	writeFileSync(join(root, 'projects', 'Demo', 'prep', 'broken.narration.json'), 'nope');
+	const n = edit.listNarrations('Demo');
+	assert.equal(n.length, 1);
+	assert.deepEqual([n[0].name, n[0].audio, n[0].words[1].cue], ['story', 'projects/demo/voice/story.wav', 0]);
+});
