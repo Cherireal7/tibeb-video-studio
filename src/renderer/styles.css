@@ -147,3 +147,5 @@ button.pad{align-self:flex-start;white-space:normal;text-align:left}
 .beat{position:absolute;bottom:0;width:1px;height:6px;background:var(--teal);opacity:.7;pointer-events:none}
 .beat.down{height:12px;opacity:1}
 .tbar button[aria-pressed=true]{color:var(--teal);border-color:var(--teal)}
+
+.gradebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}

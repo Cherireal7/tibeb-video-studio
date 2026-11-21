@@ -20,11 +20,11 @@ depending on one.
 | **Find real pictures** | Inside a project: search Wikimedia Commons, see each picture's licence, add it with licence, author and source recorded in the project's `CREDITS.md`. |
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
-| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. |
+| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
 ![Find real pictures](docs/app/project-tools.png)
-![Edit](docs/app/edit.png)
+![Edit](docs/app/edit-clip.png)
 ![Create](docs/app/create.png)
 ![Library](docs/app/library.png)
 
@@ -70,8 +70,8 @@ assistant session in the workspace.
 | M0 Foundations | launcher, library, editor choice, project kits | done |
 | M1 Shell | Projects, Library, Setup | done |
 | M2 Create | template forms, render into a project | first version |
-| M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no looks or keyframes yet) |
-| M4 Sound | voice, music and SFX tracks, beats, ducking | planned |
+| M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no keyframes yet) |
+| M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats and snapping done; ducking planned |
 | M5 Assistant | Claude panel working on the same timeline file | planned |
 | M6 Hand-off | layered export, CapCut and Resolve, recording | planned |
 | M7 Share | first-run setup, signed build, docs | planned |

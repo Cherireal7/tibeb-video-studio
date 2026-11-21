@@ -15,7 +15,7 @@ const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remo
 /** Inspector forms come from the same schemas the renderer validates with. */
 const formSchema = (kind: string): JsonSchema => {
 	const s = z.toJSONSchema(kind === 'text' ? textClipSchema : kind === 'audio' ? audioClipSchema : mediaClipSchema, {unrepresentable: 'any'}) as JsonSchema;
-	const {id: _id, kind: _kind, ...properties} = s.properties ?? {};
+	const {id: _id, kind: _kind, balance: _balance, ...properties} = s.properties ?? {};
 	return {...s, properties, required: (s.required ?? []).filter((k) => k !== 'id' && k !== 'kind')};
 };
 // Waveforms and beats are measured once per file by the engine and remembered for the session.
@@ -27,7 +27,7 @@ const loadPeaks = (project: string, src: string, beats: boolean) => {
 };
 
 /** The part of a file's waveform that a clip plays (from `in` for `length` seconds), stretched to the clip. */
-const Wave = ({project, clip, color}: {project: string; clip: EditClip; color: string}) => {
+const Wave = ({project, clip, color, px}: {project: string; clip: EditClip; color: string; px: number}) => {
 	const [p, setP] = useState<Peaks | null>(null);
 	const src = String(clip.src ?? '');
 	useEffect(() => {
@@ -38,7 +38,7 @@ const Wave = ({project, clip, color}: {project: string; clip: EditClip; color: s
 	if (!p || !p.peaks.length) return null;
 	const a = Math.floor(Number(clip.in ?? 0) * p.per_second), b = Math.ceil((Number(clip.in ?? 0) + clip.length) * p.per_second);
 	const part = p.peaks.slice(a, Math.max(a + 1, b));
-	const step = Math.max(1, Math.ceil(part.length / 600));
+	const step = Math.max(1, Math.ceil(part.length / Math.max(60, Math.min(4000, px / 2.5))));
 	const pts = Array.from({length: Math.ceil(part.length / step)}, (_, i) => Math.max(...part.slice(i * step, (i + 1) * step)));
 	const n = Math.max(1, Math.round((clip.length * p.per_second) / step));
 	const d = pts.map((v, i) => `M${i} ${(0.5 - v * 0.46).toFixed(3)}V${(0.5 + v * 0.46).toFixed(3)}`).join('');
@@ -213,10 +213,30 @@ const Edit = ({initial}: {initial: string}) => {
 	const startDrag = (e: React.PointerEvent, track: string, c: EditClip, mode: 'move' | 'trim') => {
 		if (!doc) return;
 		e.stopPropagation();
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		try {
+			(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		} catch {
+			// synthetic pointers (tests) cannot be captured
+		}
 		setSel({track, clip: c.id});
 		drag.current = {track, clip: c.id, mode, x0: e.clientX, start0: c.start, length0: c.length, before: doc};
 	};
+	const GRADE = ['look', 'lookStrength', 'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'balance'];
+	const [gradeNote, setGradeNote] = useState('');
+	const autoBalance = async () => {
+		if (!sel || !selected || typeof selected.src !== 'string') return;
+		setGradeNote('Measuring…');
+		try {
+			const r = await window.tibeb.balance(project, selected.src, Number(selected.in ?? 0) + Math.min(0.5, selected.length / 2));
+			change((d) => mapClip(d, sel, (c) => ({...c, balance: r.balance})));
+			setGradeNote(r.notes[0] ?? 'Balanced');
+		} catch (e) {
+			setGradeNote(clean(e));
+		}
+	};
+	const resetColour = () => sel && change((d) => mapClip(d, sel, (c) => Object.fromEntries(Object.entries(c).filter(([k]) => !GRADE.includes(k))) as EditClip));
+	const colourToTrack = () => sel && selected && change((d) => ({...d, tracks: d.tracks.map((t) => (t.id !== sel.track ? t : {...t, clips: t.clips.map((c) => (c.kind === 'audio' || c.kind === 'text' ? c
+		: {...(Object.fromEntries(Object.entries(c).filter(([k]) => !GRADE.includes(k))) as EditClip), ...Object.fromEntries(GRADE.filter((k) => k !== 'balance' && selected[k] !== undefined).map((k) => [k, selected[k]]))}))}))}));
 	const seek = (t: number) => player.current?.seekTo(Math.max(0, Math.round(t * FPS)));
 
 	const exportNow = async () => {
@@ -270,8 +290,16 @@ const Edit = ({initial}: {initial: string}) => {
 						<>
 							<div className="row between"><strong>{label(selected)}</strong><span className="dim small">{selected.kind}</span></div>
 							{typeof selected.src === 'string' && /\.(png|jpe?g|webp)$/i.test(selected.src) ? <img className="ithumb" alt="" src={media(`projects/${project}/${selected.src.replace(`projects/${slug}/`, '')}`)} /> : null}
+							{selected.kind === 'video' || selected.kind === 'image' ? (
+								<div className="gradebar">
+									<button className="small" onClick={() => void autoBalance()}>{Array.isArray(selected.balance) ? 'Balance again' : 'Auto balance'}</button>
+									<button className="small" onClick={colourToTrack} title="Copy this clip's look and adjustments to every clip on the track">Colour → whole track</button>
+									<button className="small" onClick={resetColour}>Reset colour</button>
+									{gradeNote ? <span className="dim small">{gradeNote}</span> : null}
+								</div>
+							) : null}
 							<SchemaForm key={`${sel?.track}-${sel?.clip}`} schema={formSchema(selected.kind)} value={selected} label="Clip" files={files.map((f) => `projects/${slug}/${f.file}`)}
-								onChange={(v) => sel && change((d) => mapClip(d, sel, (c) => ({...(v as EditClip), id: c.id, kind: c.kind})))} />
+								onChange={(v) => sel && change((d) => mapClip(d, sel, (c) => ({...(v as EditClip), id: c.id, kind: c.kind, ...(c.balance ? {balance: c.balance} : {})})))} />
 						</>
 					) : (
 						<>
@@ -316,7 +344,7 @@ const Edit = ({initial}: {initial: string}) => {
 									<div key={c.id} className={`clip${sel?.clip === c.id && sel.track === t.id ? ' on' : ''}`} title={label(c)}
 										style={{left: c.start * pps, width: Math.max(8, c.length * pps - 2), background: `${COLORS[t.kind]}3a`, borderColor: COLORS[t.kind]}}
 										onPointerDown={(e) => startDrag(e, t.id, c, 'move')}>
-										{t.kind === 'audio' || c.kind === 'video' ? <Wave project={project} clip={c} color={COLORS[t.kind]} /> : null}
+										{t.kind === 'audio' || c.kind === 'video' ? <Wave project={project} clip={c} color={COLORS[t.kind]} px={c.length * pps} /> : null}
 										<span>{label(c)}</span>
 										<i className="grip" onPointerDown={(e) => startDrag(e, t.id, c, 'trim')} />
 									</div>

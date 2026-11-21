@@ -83,6 +83,14 @@ const registerIpc = () => {
 		need((src as string).startsWith(prefix), 'not a file of this project');
 		return engine(['peaks', projectPath(name as string, (src as string).slice(prefix.length)), '--per-second', '40', ...(beats ? ['--beats'] : [])], 300_000);
 	});
+	ipcMain.handle('media:balance', async (_e, name: unknown, src: unknown, time: unknown) => {
+		need(isProjectName(name) && typeof src === 'string' && typeof time === 'number' && time >= 0 && time < 36000, 'bad request');
+		const prefix = `projects/${projectSlug(name as string)}/`;
+		need((src as string).startsWith(prefix), 'not a file of this project');
+		const file = projectPath(name as string, (src as string).slice(prefix.length));
+		const res = await engine<{cdl: {slope: number[]; notes: string[]}}>(['balance', file, ...(/\.(mp4|mov|m4v|webm|mkv)$/i.test(file) ? ['--time', String(time)] : [])], 120_000);
+		return {balance: res.cdl.slope.map((v) => Math.round(Math.min(5, Math.max(0.2, v)) * 1000) / 1000), notes: res.cdl.notes};
+	});
 	ipcMain.handle('edit:load', (_e, name: unknown) => {
 		need(isProjectName(name), 'not a valid project name');
 		return loadEdit(name as string);
@@ -155,6 +163,13 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
 		await wait(name === 'setup' ? 5000 : name === 'edit' ? 6000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
+		if (name === 'edit') { // select the first picture clip so the inspector with the colour tools is captured too
+			await win.webContents.executeJavaScript(`(() => { const c = document.querySelectorAll('.lane')[2]?.querySelector('.clip'); if (c) { const r = c.getBoundingClientRect();
+				c.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, clientX: r.left + 10, clientY: r.top + 5, pointerId: 1}));
+				c.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, clientX: r.left + 10, clientY: r.top + 5, pointerId: 1})); } })()`);
+			await wait(900);
+			writeFileSync(join(dir, 'edit-clip.png'), (await win.webContents.capturePage()).toPNG());
+		}
 	}
 	app.quit();
 };
@@ -216,8 +231,12 @@ const editTest = async (win: BrowserWindow, project: string) => {
 			doc.duration = 6;
 			await window.tibeb.saveEdit(${JSON.stringify(project)}, doc);
 			const again = await window.tibeb.loadEdit(${JSON.stringify(project)});
+			const bal = await window.tibeb.balance(${JSON.stringify(project)}, doc.tracks[1].clips[0].src, 0);
+			const pk = await window.tibeb.peaks(${JSON.stringify(project)}, doc.tracks[3].clips[0].src, true);
+			doc.tracks[1].clips[0].look = 'golden-hour'; doc.tracks[1].clips[0].balance = bal.balance;
+			await window.tibeb.saveEdit(${JSON.stringify(project)}, doc);
 			const done = await window.tibeb.exportEdit(${JSON.stringify(project)}, '9x16', 'edit-test');
-			return 'OK created=' + created + ' reloaded=' + !again.created + ' clips=' + doc.tracks.map((t) => t.id + ':' + t.clips.length).join(',') + ' ' + done.file;
+			return 'OK created=' + created + ' reloaded=' + !again.created + ' clips=' + doc.tracks.map((t) => t.id + ':' + t.clips.length).join(',') + ' balance=' + JSON.stringify(bal.balance) + ' peaks=' + pk.peaks.length + ' bpm=' + pk.bpm + ' ' + done.file;
 		} catch (e) { return 'FAILED ' + e.message; }
 	})()`);
 	console.log(result);
