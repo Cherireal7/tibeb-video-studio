@@ -20,7 +20,7 @@ depending on one.
 | **Find real pictures** | Inside a project: search Wikimedia Commons, see each picture's licence, add it with licence, author and source recorded in the project's `CREDITS.md`. |
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
-| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. |
+| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. Music can dip automatically while the voice speaks. **Send to editor** exports the edit as layers (cut clips, each text as a transparent overlay, audio stems, looks, an OTIO/FCPXML timeline and a README) to rebuild in CapCut or Resolve. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
 ![Find real pictures](docs/app/project-tools.png)
@@ -71,9 +71,9 @@ assistant session in the workspace.
 | M1 Shell | Projects, Library, Setup | done |
 | M2 Create | template forms, render into a project | first version |
 | M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no keyframes yet) |
-| M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats and snapping done; ducking planned |
+| M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats, snapping and ducking done |
 | M5 Assistant | Claude panel working on the same timeline file | planned |
-| M6 Hand-off | layered export, CapCut and Resolve, recording | planned |
+| M6 Hand-off | layered export, CapCut and Resolve, recording | layered export done (timeline files not yet opened in an editor); CapCut project writer and recording planned |
 | M7 Share | first-run setup, signed build, docs | planned |
 
 Details: [PLAN.md](PLAN.md) for the app and [INTERCHANGE.md](INTERCHANGE.md) for keeping AI and Remotion

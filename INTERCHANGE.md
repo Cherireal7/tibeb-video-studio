@@ -5,7 +5,9 @@ arrives in an editor as **separate, movable layers on a timeline**, not as one f
 made in the editor can come back. CapCut is the first target; the design is open so Resolve, Premiere,
 Final Cut and tools that do not exist yet plug in the same way.
 
-Status on 2026-11-21: plan only. Facts checked on this Mac are marked ✅, assumptions ❓.
+Status on 2026-11-21: phases I0 and I1 are built (`resolve-assist handoff`, "Send to editor" in the app): layered
+package with OTIO and FCPXML. The timeline files are well-formed but have not been opened in Resolve, Premiere or
+Final Cut yet. The CapCut adapter (C0 onward) is not started. Facts checked on this Mac are marked ✅, assumptions ❓.
 
 ![Interchange](docs/interchange.png)
 

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('tibeb', {
 	peaks: (project: string, src: string, beats: boolean) => call('media:peaks', project, src, beats),
 	loadEdit: (project: string) => call('edit:load', project),
 	saveEdit: (project: string, doc: unknown) => call('edit:save', project, doc),
+	handoff: (project: string, format: string) => call('edit:handoff', project, format),
 	exportEdit: (project: string, format: string, name: string) => call('edit:export', project, format, name),
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),

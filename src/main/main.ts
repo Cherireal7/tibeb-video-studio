@@ -106,6 +106,12 @@ const registerIpc = () => {
 		await engine(['intake', name as string]).catch(() => undefined);
 		return done;
 	});
+	ipcMain.handle('edit:handoff', async (_e, name: unknown, format: unknown) => {
+		need(isProjectName(name) && (format === '9x16' || format === '16x9'), 'bad request');
+		const res = await engine<{counts: Record<string, number>; notes: string[]; files: number}>(['handoff', name as string, '--format', format as string, '--motion-dir', motionDir()], 3_600_000);
+		void shell.openPath(projectPath(name as string, 'handoff'));
+		return res;
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -235,8 +241,11 @@ const editTest = async (win: BrowserWindow, project: string) => {
 			const pk = await window.tibeb.peaks(${JSON.stringify(project)}, doc.tracks[3].clips[0].src, true);
 			doc.tracks[1].clips[0].look = 'golden-hour'; doc.tracks[1].clips[0].balance = bal.balance;
 			await window.tibeb.saveEdit(${JSON.stringify(project)}, doc);
+			doc.tracks[3].duck = {under: 'voice', amount: 0.3};
+			await window.tibeb.saveEdit(${JSON.stringify(project)}, doc);
+			const ho = await window.tibeb.handoff(${JSON.stringify(project)}, '9x16');
 			const done = await window.tibeb.exportEdit(${JSON.stringify(project)}, '9x16', 'edit-test');
-			return 'OK created=' + created + ' reloaded=' + !again.created + ' clips=' + doc.tracks.map((t) => t.id + ':' + t.clips.length).join(',') + ' balance=' + JSON.stringify(bal.balance) + ' peaks=' + pk.peaks.length + ' bpm=' + pk.bpm + ' ' + done.file;
+			return 'OK created=' + created + ' reloaded=' + !again.created + ' clips=' + doc.tracks.map((t) => t.id + ':' + t.clips.length).join(',') + ' handoff=' + JSON.stringify(ho.counts) + ' balance=' + JSON.stringify(bal.balance) + ' peaks=' + pk.peaks.length + ' bpm=' + pk.bpm + ' ' + done.file;
 		} catch (e) { return 'FAILED ' + e.message; }
 	})()`);
 	console.log(result);

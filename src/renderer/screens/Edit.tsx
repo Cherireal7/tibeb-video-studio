@@ -221,6 +221,30 @@ const Edit = ({initial}: {initial: string}) => {
 		setSel({track, clip: c.id});
 		drag.current = {track, clip: c.id, mode, x0: e.clientX, start0: c.start, length0: c.length, before: doc};
 	};
+	/** Lower a music track while the voice track is speaking: speech is found from the voice clips' waveforms. */
+	const toggleDuck = async (trackId: string) => {
+		if (!doc) return;
+		const track = doc.tracks.find((t) => t.id === trackId);
+		if (track?.duck) return change((d) => ({...d, tracks: d.tracks.map((t) => (t.id === trackId ? (({duck: _d, ...rest}) => rest)(t) as EditTrack : t))}));
+		const voice = doc.tracks.find((t) => t.id === 'voice' && t.clips.length) ?? doc.tracks.find((t) => t.kind === 'audio' && t.id !== trackId && t.clips.length);
+		if (!voice) return setStatus('Add a voice clip first: ducking lowers the music while the voice speaks.');
+		const ranges: [number, number][] = [];
+		for (const c of voice.clips) {
+			const p = await loadPeaks(project, String(c.src), false);
+			const from = Number(c.in ?? 0);
+			let open: number | null = null;
+			p.peaks.slice(Math.floor(from * p.per_second), Math.ceil((from + c.length) * p.per_second)).forEach((v, i, arr) => {
+				const t = c.start + i / p.per_second;
+				if (v > 0.08 && open === null) open = t;
+				if ((v <= 0.08 || i === arr.length - 1) && open !== null && (i === arr.length - 1 || arr.slice(i, i + Math.ceil(p.per_second * 0.6)).every((x) => x <= 0.08))) {
+					ranges.push([Math.round(open * 100) / 100, Math.round(t * 100) / 100]);
+					open = null;
+				}
+			});
+		}
+		change((d) => ({...d, tracks: d.tracks.map((t) => (t.id === trackId ? {...t, duck: {under: voice.id, amount: 0.3, ...(ranges.length ? {ranges: ranges.slice(0, 400)} : {})}} : t))}));
+		setStatus(ranges.length ? `Music dips to 30 % in ${ranges.length} spoken stretch${ranges.length === 1 ? '' : 'es'}.` : 'Music dips under the voice clips.');
+	};
 	const GRADE = ['look', 'lookStrength', 'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'balance'];
 	const [gradeNote, setGradeNote] = useState('');
 	const autoBalance = async () => {
@@ -239,6 +263,21 @@ const Edit = ({initial}: {initial: string}) => {
 		: {...(Object.fromEntries(Object.entries(c).filter(([k]) => !GRADE.includes(k))) as EditClip), ...Object.fromEntries(GRADE.filter((k) => k !== 'balance' && selected[k] !== undefined).map((k) => [k, selected[k]]))}))}))}));
 	const seek = (t: number) => player.current?.seekTo(Math.max(0, Math.round(t * FPS)));
 
+	const [handing, setHanding] = useState(false);
+	const handoffNow = async () => {
+		if (!doc) return;
+		setHanding(true);
+		setStatus('Preparing layers for your editor: text overlays are being rendered…');
+		try {
+			await window.tibeb.saveEdit(project, doc);
+			const r = await window.tibeb.handoff(project, format);
+			setStatus(`Hand-off ready: ${r.files} files in the project's handoff folder (opened in Finder).${r.notes.length ? ' ' + r.notes[0] : ''}`);
+		} catch (e) {
+			setProblem(clean(e));
+		} finally {
+			setHanding(false);
+		}
+	};
 	const exportNow = async () => {
 		if (!doc) return;
 		setRender({busy: true, percent: 0, file: ''});
@@ -275,7 +314,8 @@ const Edit = ({initial}: {initial: string}) => {
 				</div>
 				<div className="row">
 					{render.file ? <button onClick={() => void window.tibeb.reveal(project, 'exports')}>Show export</button> : null}
-					<button className="primary" disabled={render.busy || Boolean(problem)} onClick={() => void exportNow()}>{render.busy ? `Exporting ${render.percent}%` : 'Export video'}</button>
+					<button disabled={handing || render.busy || Boolean(problem)} onClick={() => void handoffNow()} title="Every clip as its own file, plus a timeline file and instructions, to keep editing in CapCut or Resolve">{handing ? 'Preparing…' : 'Send to editor'}</button>
+					<button className="primary" disabled={render.busy || handing || Boolean(problem)} onClick={() => void exportNow()}>{render.busy ? `Exporting ${render.percent}%` : 'Export video'}</button>
 				</div>
 			</div>
 			{problem ? <p className="error" role="alert">{problem}</p> : null}
@@ -329,8 +369,8 @@ const Edit = ({initial}: {initial: string}) => {
 				<label className="dim small row">Zoom<input type="range" min={20} max={220} value={pps} onChange={(e) => setPps(Number(e.target.value))} /></label>
 			</div>
 			<div className="tl" onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
-				<div className="lanes" style={{width: width + 120}}>
-					<div className="lane ruler" onPointerDown={(e) => seek((e.clientX - e.currentTarget.getBoundingClientRect().left - 120) / pps)}>
+				<div className="lanes" style={{width: width + 150}}>
+					<div className="lane ruler" onPointerDown={(e) => seek((e.clientX - e.currentTarget.getBoundingClientRect().left - 150) / pps)}>
 						<div className="tname" />
 						<div className="track">{Array.from({length: Math.ceil(doc.duration) + 1}, (_, i) => <span key={i} className="tick" style={{left: i * pps}}>{i}s</span>)}
 							{pps >= 40 ? beatInfo.times.map((b) => <i key={b} className={`beat${beatInfo.down.some((x) => Math.abs(x - b) < 0.02) ? ' down' : ''}`} style={{left: b * pps}} />) : beatInfo.down.map((b) => <i key={b} className="beat down" style={{left: b * pps}} />)}</div>
@@ -338,6 +378,7 @@ const Edit = ({initial}: {initial: string}) => {
 					{doc.tracks.map((t) => (
 						<div key={t.id} className="lane">
 							<div className="tname"><span>{t.name}</span>
+								{t.kind === 'audio' && t.id !== 'voice' && t.clips.length ? <button className="small" aria-pressed={Boolean(t.duck)} title="Lower this track while the voice speaks" onClick={() => void toggleDuck(t.id)}>Duck</button> : null}
 								{t.kind !== 'text' ? <button className="small" aria-pressed={Boolean(t.muted)} onClick={() => change((d) => ({...d, tracks: d.tracks.map((x) => (x.id === t.id ? {...x, muted: !x.muted} : x))}))}>{t.muted ? 'Muted' : 'Mute'}</button> : null}</div>
 							<div className="track" onPointerDown={() => setSel(null)}>
 								{t.clips.map((c) => (
@@ -345,6 +386,9 @@ const Edit = ({initial}: {initial: string}) => {
 										style={{left: c.start * pps, width: Math.max(8, c.length * pps - 2), background: `${COLORS[t.kind]}3a`, borderColor: COLORS[t.kind]}}
 										onPointerDown={(e) => startDrag(e, t.id, c, 'move')}>
 										{t.kind === 'audio' || c.kind === 'video' ? <Wave project={project} clip={c} color={COLORS[t.kind]} px={c.length * pps} /> : null}
+										{c.kind === 'audio' && Number(c.fadeIn) > 0 ? <i className="fade in" style={{width: Math.min(c.length, Number(c.fadeIn)) * pps}} /> : null}
+										{c.kind === 'audio' && Number(c.fadeOut) > 0 ? <i className="fade out" style={{width: Math.min(c.length, Number(c.fadeOut)) * pps}} /> : null}
+										{t.duck ? (t.duck.ranges ?? []).filter(([a, b]) => b > c.start && a < c.start + c.length).map(([a, b]) => <i key={a} className="ducked" style={{left: (Math.max(a, c.start) - c.start) * pps, width: (Math.min(b, c.start + c.length) - Math.max(a, c.start)) * pps}} />) : null}
 										<span>{label(c)}</span>
 										<i className="grip" onPointerDown={(e) => startDrag(e, t.id, c, 'trim')} />
 									</div>
@@ -352,7 +396,7 @@ const Edit = ({initial}: {initial: string}) => {
 							</div>
 						</div>
 					))}
-					<div className="playhead" style={{left: 120 + now * pps}} />
+					<div className="playhead" style={{left: 150 + now * pps}} />
 				</div>
 			</div>
 		</section>
