@@ -39,6 +39,9 @@ interface Window {
 		obsStop(project: string): Promise<{file?: string; seconds?: number; addedTo: string}>;
 		deliveryCheck(project: string, file: string): Promise<Delivery>;
 		credits(project: string): Promise<string>;
+		ask(project: string, prompt: string, session: string): Promise<boolean>;
+		stopAssistant(): Promise<boolean>;
+		onAssistant(cb: (e: AssistantEvent) => void): () => void;
 		templates(): Promise<Template[]>;
 		render(req: {project: string; template: string; format: string; name: string; alpha: boolean; props: unknown}): Promise<{file: string; config: string}>;
 		onRenderProgress(cb: (p: {percent: number; line: string}) => void): () => void;
@@ -54,6 +57,7 @@ type Peaks = {duration: number; per_second: number; peaks: number[]; bpm?: numbe
 type CapcutPull = {draft: string; summary: string; changes: {clip: string; field: string; from: unknown; to: unknown}[]; deleted: string[]; added_in_capcut: {kind: string; file?: string; text?: string; start: number; length: number}[]; applied?: boolean};
 type ObsStatus = {connected: boolean; message?: string; recording?: boolean; scene?: string; records_into_library?: boolean; [k: string]: unknown};
 type Delivery = {shape: string; width: number; height: number; duration: number; lufs: number | null; megabytes: number; ready: boolean; checks: DoctorCheck[]};
+type AssistantEvent = {type: 'text'; text: string} | {type: 'tool'; name: string} | {type: 'done'; session: string; ok: boolean; note: string};
 type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; duck?: {under: string; amount: number; ranges?: [number, number][]}; clips: EditClip[]};
 type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};

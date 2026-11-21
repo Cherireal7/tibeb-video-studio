@@ -1,4 +1,5 @@
 import {Suspense, lazy, useEffect, useState} from 'react';
+import {Assistant} from './screens/Assistant';
 import {Create} from './screens/Create';
 import {Deliver} from './screens/Deliver';
 import {Library} from './screens/Library';
@@ -13,7 +14,7 @@ const Edit = lazy(() => import('./screens/Edit'));
 const NAV: {id: string; label: string; soon?: boolean}[] = [
 	{id: 'projects', label: 'Projects'}, {id: 'library', label: 'Library'},
 	{id: 'create', label: 'Create'}, {id: 'edit', label: 'Edit'}, {id: 'record', label: 'Record'},
-	{id: 'assistant', label: 'Assistant', soon: true}, {id: 'deliver', label: 'Deliver'}, {id: 'setup', label: 'Setup'},
+	{id: 'assistant', label: 'Assistant'}, {id: 'deliver', label: 'Deliver'}, {id: 'setup', label: 'Setup'},
 ];
 
 /** media://workspace/<path>: files from the workspace, served by the main process. */
@@ -50,7 +51,7 @@ export const App = () => {
 				<button className="session" onClick={() => void window.tibeb.startSession()}>Start a session</button>
 			</nav>
 			<main className="main">
-				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'edit' ? <Suspense fallback={<p className="dim">Opening the editor…</p>}><Edit initial={rest.join('/')} /></Suspense> : section === 'record' ? <Record /> : section === 'deliver' ? <Deliver initial={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
+				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'edit' ? <Suspense fallback={<p className="dim">Opening the editor…</p>}><Edit initial={rest.join('/')} /></Suspense> : section === 'assistant' ? <Assistant initial={rest.join('/')} /> : section === 'record' ? <Record /> : section === 'deliver' ? <Deliver initial={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
 			</main>
 		</div>
 	);

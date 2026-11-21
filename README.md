@@ -5,8 +5,8 @@ pick sounds and graphics, build animated scenes from templates, and hand the res
 export it. It runs on your Mac, keeps your media on your disk, and works with an AI assistant without
 depending on one.
 
-> Status: early. Projects, Library, Create, Edit, Record, Deliver and Setup work today. The assistant panel,
-> keyframes and the remaining colour tools are planned; see the [roadmap](#roadmap).
+> Status: early. Every screen in the sidebar works today in a first version. Keyframes and the remaining
+> colour tools (wheels, curve, scopes) are planned; see the [roadmap](#roadmap).
 
 ![Projects](docs/app/projects.png)
 
@@ -22,6 +22,7 @@ depending on one.
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
 | **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. Music can dip automatically while the voice speaks. **Send to editor** exports the edit as layers (cut clips, each text as a transparent overlay, audio stems, looks, an OTIO/FCPXML timeline and a README) for Resolve or any editor. **Open in CapCut** (experimental) writes a real CapCut project with every clip on its own track and editable titles; **Changes from CapCut** reads back what you moved, trimmed, deleted or retyped there and applies it to the edit after you confirm. |
 | **Record** | Start and stop OBS recordings (screen, camera, voice) and file the result straight into a project. |
+| **Assistant** | A conversation with Claude Code about the current project. It reads the brief and files and can use the studio's tools (pictures, narration, captions, kits, hand-off); no shell access from this panel. Uses your own Claude Code sign-in. |
 | **Deliver** | Check each export before posting (shape, resolution, loudness about −14 LUFS, peaks, length) and copy the post text with "Edit by Cheri" and the picture credits. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
@@ -58,6 +59,7 @@ npm run shots      # save a picture of every screen to docs/app/
 node_modules/.bin/electron . --tools-test="App Test"    # narration + picture search through the app
 node_modules/.bin/electron . --render-test="App Test"   # one template rendered through the app
 node_modules/.bin/electron . --edit-test="App Test"     # first cut, save, reload and export through the editor
+node_modules/.bin/electron . --assistant-test="Name"   # one short question through the Assistant (uses your Claude plan)
 ```
 
 With the launcher from resolve-assist installed, `tibeb app` opens it from anywhere and `tibeb` starts an
@@ -74,7 +76,7 @@ assistant session in the workspace.
 | M2 Create | template forms, render into a project | first version |
 | M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no keyframes yet) |
 | M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats, snapping and ducking done |
-| M5 Assistant | Claude panel working on the same timeline file | planned |
+| M5 Assistant | Claude panel working on the same timeline file | first version (chat with studio tools; no live link to the open timeline yet) |
 | M6 Hand-off | layered export, CapCut and Resolve, recording | layered export done (OTIO/FCPXML not yet opened in an editor); experimental CapCut project writer and read-back done; recording planned |
 | M7 Share | first-run setup, signed build, docs | planned |
 
@@ -87,7 +89,7 @@ work editable in CapCut and other editors.
 
 ## Design rules
 
-- **Local first.** Media never leaves the machine unless a feature says so. Two features go online and say so: natural narration voices (the script text goes to Microsoft) and the Wikimedia Commons picture search.
+- **Local first.** Media never leaves the machine unless a feature says so. Three features go online and say so: the assistant (your requests and what it reads go to Claude), natural narration voices (the script text goes to Microsoft) and the Wikimedia Commons picture search.
 - **Files are the database.** Projects and the library are folders with small JSON indexes.
 - **The editor is optional.** Finish in the app (planned), or hand off to DaVinci Resolve or CapCut.
 - **Do the work once.** Transcripts, cuts, indexes and render settings are saved with the project and reused.

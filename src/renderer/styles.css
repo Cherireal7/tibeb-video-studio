@@ -165,3 +165,12 @@ button.pad{align-self:flex-start;white-space:normal;text-align:left}
 .dbody strong{overflow-wrap:anywhere}
 .checks.mini{width:100%} .checks.mini li{grid-template-columns:18px 100px 1fr;padding:5px 9px;font-size:12.5px}
 .desc{white-space:pre-wrap;font:inherit;margin:0 0 10px;color:var(--text)}
+
+.assistant{display:flex;flex-direction:column;height:calc(100vh - 48px - 52px);min-height:420px}
+.chat{flex:1;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.intro{max-width:720px}
+.msg{max-width:780px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}
+.msg.you{align-self:flex-end;background:var(--panel2);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:8px 12px}
+.msg.tool{color:var(--teal);font-size:12.5px} .msg.note{color:var(--dim);font-size:12.5px}
+.ask{display:flex;gap:10px;margin-top:12px;align-items:flex-end}
+.ask textarea{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;color:var(--text);resize:none}

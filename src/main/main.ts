@@ -4,6 +4,7 @@ import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {askAssistant, stopAssistant} from './assistant';
 import {loadEdit, saveEdit} from './edit';
 import {engine} from './engine';
 import {getTemplates, motionDir, projectSlug, render, type RenderRequest} from './motion';
@@ -155,6 +156,16 @@ const registerIpc = () => {
 			return '';
 		}
 	});
+	ipcMain.handle('assistant:ask', async (e, name: unknown, prompt: unknown, session: unknown) => {
+		need(isProjectName(name) && typeof prompt === 'string' && prompt.trim().length > 0 && prompt.length <= 8000, 'Write a request first.');
+		need(session === '' || (typeof session === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(session)), 'bad conversation id');
+		await askAssistant(name as string, prompt as string, session as string, (ev) => e.sender.send('assistant:event', ev));
+		return true;
+	});
+	ipcMain.handle('assistant:stop', () => {
+		stopAssistant();
+		return true;
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -188,7 +199,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=')),
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=') || x.startsWith('--assistant-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -208,7 +219,7 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
 	const first = listProjects()[0]?.name ?? '';
-	for (const [name, hash] of [['projects', '#projects'], ['record', '#record'], ['deliver', `#deliver/${encodeURIComponent(first)}`], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
+	for (const [name, hash] of [['projects', '#projects'], ['assistant', `#assistant/${encodeURIComponent(first)}`], ['record', '#record'], ['deliver', `#deliver/${encodeURIComponent(first)}`], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
 		await wait(name === 'setup' ? 5000 : name === 'edit' ? 6000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
@@ -295,6 +306,22 @@ const editTest = async (win: BrowserWindow, project: string) => {
 	app.quit();
 };
 
+/** `electron . --assistant-test=<project>`: one short question through the Assistant path, print what came back. */
+const assistantTest = async (win: BrowserWindow, project: string) => {
+	await new Promise((r) => setTimeout(r, 1500));
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		const events = [];
+		const off = window.tibeb.onAssistant((e) => events.push(e));
+		try {
+			await window.tibeb.ask(${JSON.stringify(project)}, 'Without using any tools, reply with the single word: ready', '');
+			off();
+			return 'OK ' + JSON.stringify(events.map((e) => e.type === 'text' ? {t: e.text.slice(0, 60)} : e.type === 'done' ? {done: e.ok, note: e.note, session: Boolean(e.session)} : e));
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	console.log(result);
+	app.quit();
+};
+
 void app.whenReady().then(() => {
 	protocol.handle('media', (request) => {
 		try {
@@ -324,6 +351,8 @@ void app.whenReady().then(() => {
 	if (shotsArg) void takeShots(win, shotsArg.slice('--shots='.length));
 	const et = process.argv.find((x) => x.startsWith('--edit-test='));
 	if (et) void editTest(win, et.slice('--edit-test='.length));
+	const at = process.argv.find((x) => x.startsWith('--assistant-test='));
+	if (at) void assistantTest(win, at.slice('--assistant-test='.length));
 	const tt = process.argv.find((x) => x.startsWith('--tools-test='));
 	if (tt) void toolsTest(win, tt.slice('--tools-test='.length));
 	const rt = process.argv.find((x) => x.startsWith('--render-test='));

@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld('tibeb', {
 	obsStop: (project: string) => call('obs:stop', project),
 	deliveryCheck: (project: string, file: string) => call('deliver:check', project, file),
 	credits: (project: string) => call('deliver:credits', project),
+	ask: (project: string, prompt: string, session: string) => call('assistant:ask', project, prompt, session),
+	stopAssistant: () => call('assistant:stop'),
+	onAssistant: (cb: (e: unknown) => void) => {
+		const fn = (_e: unknown, ev: unknown) => cb(ev);
+		ipcRenderer.on('assistant:event', fn);
+		return () => ipcRenderer.removeListener('assistant:event', fn);
+	},
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),
 	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {
