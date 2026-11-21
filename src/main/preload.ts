@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('tibeb', {
 	capcutPull: (project: string, apply: boolean) => call('capcut:pull', project, apply),
 	handoff: (project: string, format: string) => call('edit:handoff', project, format),
 	exportEdit: (project: string, format: string, name: string) => call('edit:export', project, format, name),
+	obsStatus: () => call('obs:status'),
+	obsScenes: () => call('obs:scenes'),
+	obsStart: (scene: string) => call('obs:start', scene),
+	obsStop: (project: string) => call('obs:stop', project),
+	deliveryCheck: (project: string, file: string) => call('deliver:check', project, file),
+	credits: (project: string) => call('deliver:credits', project),
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),
 	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {

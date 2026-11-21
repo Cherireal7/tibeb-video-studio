@@ -33,6 +33,12 @@ interface Window {
 		capcutPull(project: string, apply: boolean): Promise<CapcutPull>;
 		handoff(project: string, format: string): Promise<{counts: Record<string, number>; notes: string[]; files: number}>;
 		exportEdit(project: string, format: string, name: string): Promise<{file: string; config: string}>;
+		obsStatus(): Promise<ObsStatus>;
+		obsScenes(): Promise<{scenes?: string[]; current?: string}>;
+		obsStart(scene: string): Promise<Record<string, unknown>>;
+		obsStop(project: string): Promise<{file?: string; seconds?: number; addedTo: string}>;
+		deliveryCheck(project: string, file: string): Promise<Delivery>;
+		credits(project: string): Promise<string>;
 		templates(): Promise<Template[]>;
 		render(req: {project: string; template: string; format: string; name: string; alpha: boolean; props: unknown}): Promise<{file: string; config: string}>;
 		onRenderProgress(cb: (p: {percent: number; line: string}) => void): () => void;
@@ -46,6 +52,8 @@ interface Window {
 declare module '@motion/*';
 type Peaks = {duration: number; per_second: number; peaks: number[]; bpm?: number; beats?: number[]; downbeats?: number[]};
 type CapcutPull = {draft: string; summary: string; changes: {clip: string; field: string; from: unknown; to: unknown}[]; deleted: string[]; added_in_capcut: {kind: string; file?: string; text?: string; start: number; length: number}[]; applied?: boolean};
+type ObsStatus = {connected: boolean; message?: string; recording?: boolean; scene?: string; records_into_library?: boolean; [k: string]: unknown};
+type Delivery = {shape: string; width: number; height: number; duration: number; lufs: number | null; megabytes: number; ready: boolean; checks: DoctorCheck[]};
 type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; duck?: {under: string; amount: number; ranges?: [number, number][]}; clips: EditClip[]};
 type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};

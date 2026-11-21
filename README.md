@@ -5,8 +5,8 @@ pick sounds and graphics, build animated scenes from templates, and hand the res
 export it. It runs on your Mac, keeps your media on your disk, and works with an AI assistant without
 depending on one.
 
-> Status: early. Projects, Library, Create, a first Edit screen and Setup work today. Sound tools, colour,
-> the assistant panel and editor hand-off are planned; see the [roadmap](#roadmap).
+> Status: early. Projects, Library, Create, Edit, Record, Deliver and Setup work today. The assistant panel,
+> keyframes and the remaining colour tools are planned; see the [roadmap](#roadmap).
 
 ![Projects](docs/app/projects.png)
 
@@ -21,6 +21,8 @@ depending on one.
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
 | **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. Music can dip automatically while the voice speaks. **Send to editor** exports the edit as layers (cut clips, each text as a transparent overlay, audio stems, looks, an OTIO/FCPXML timeline and a README) for Resolve or any editor. **Open in CapCut** (experimental) writes a real CapCut project with every clip on its own track and editable titles; **Changes from CapCut** reads back what you moved, trimmed, deleted or retyped there and applies it to the edit after you confirm. |
+| **Record** | Start and stop OBS recordings (screen, camera, voice) and file the result straight into a project. |
+| **Deliver** | Check each export before posting (shape, resolution, loudness about −14 LUFS, peaks, length) and copy the post text with "Edit by Cheri" and the picture credits. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
 ![Find real pictures](docs/app/project-tools.png)

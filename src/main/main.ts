@@ -127,6 +127,34 @@ const registerIpc = () => {
 		need(Boolean(draft), 'No CapCut project was made from this edit yet. Use “Open in CapCut” first.');
 		return engine(['capcut-pull', draft!.name, ...(apply ? ['--apply'] : [])], 120_000);
 	});
+	// Recording through OBS (the engine talks to OBS's WebSocket; the password stays in its own file).
+	ipcMain.handle('obs:status', () => engine(['obs-status'], 20_000));
+	ipcMain.handle('obs:scenes', () => engine(['obs-scenes'], 20_000));
+	ipcMain.handle('obs:start', (_e, scene: unknown) => {
+		need(scene === '' || (typeof scene === 'string' && scene.length <= 120), 'bad scene name');
+		return engine(['obs-record', ...(scene ? ['--scene', scene as string] : [])], 30_000);
+	});
+	ipcMain.handle('obs:stop', async (_e, name: unknown) => {
+		need(name === '' || isProjectName(name), 'not a valid project name');
+		const res = await engine<{file?: string; seconds?: number; library_file?: string}>(['obs-stop'], 180_000);
+		if (name && res.file) {
+			copyToInbox(name as string, [res.file]);
+			await engine(['intake', name as string], 600_000);
+		}
+		return {...res, addedTo: name && res.file ? name : ''};
+	});
+	ipcMain.handle('deliver:check', (_e, name: unknown, file: unknown) => {
+		need(isProjectName(name) && typeof file === 'string' && file.startsWith('exports/'), 'bad request');
+		return engine(['delivery-check', projectPath(name as string, file as string)], 900_000);
+	});
+	ipcMain.handle('deliver:credits', (_e, name: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		try {
+			return readFileSync(projectPath(name as string, 'CREDITS.md'), 'utf8');
+		} catch {
+			return '';
+		}
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -180,7 +208,7 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
 	const first = listProjects()[0]?.name ?? '';
-	for (const [name, hash] of [['projects', '#projects'], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
+	for (const [name, hash] of [['projects', '#projects'], ['record', '#record'], ['deliver', `#deliver/${encodeURIComponent(first)}`], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
 		await wait(name === 'setup' ? 5000 : name === 'edit' ? 6000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
