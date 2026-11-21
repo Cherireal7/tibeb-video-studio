@@ -5,7 +5,7 @@ library, motion templates, a built-in editor for picture and sound, recording, t
 an optional hand-off to DaVinci Resolve or CapCut.
 Name: **Tibeb** (ጥበብ, "craft"). Launcher commands: `tibeb` or `studio`.
 
-Status on 2026-11-21: plan only. What exists today is listed under "Starting point".
+Status on 2026-11-21: M1 (shell) started: Projects, Library and Setup screens run; see README.md.
 
 ![Roadmap](docs/roadmap.png)
 
@@ -18,7 +18,7 @@ How it would look (design mockups, not screenshots of a working app):
 ![Projects and library](docs/mockup-home.png)
 
 The images are generated from `design/index.tsx`; re-render with
-`node_modules/.bin/remotion still design/index.tsx Roadmap docs/roadmap.png --scale=1.5` (same for `Editor`, `Color`, `Home`, `Interchange`).
+`cd design && node_modules/.bin/remotion still index.tsx Roadmap ../docs/roadmap.png --scale=1.5` (same for `Editor`, `Color`, `Home`, `Interchange`).
 
 Related plan: [INTERCHANGE.md](INTERCHANGE.md), the open workflow that keeps AI + Remotion edits editable in CapCut and other editors.
 
