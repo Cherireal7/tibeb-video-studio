@@ -78,6 +78,13 @@ const registerIpc = () => {
 		const res = await engine<{file: string; license: string; notes: string[]}>(['commons', title as string, '--add', name as string], 180_000);
 		return {...res, project: getProject(name as string)};
 	});
+	ipcMain.handle('picture:cutout', async (_e, name: unknown, file: unknown, fillBlack: unknown) => {
+		need(isProjectName(name) && typeof file === 'string' && file.length <= 300 && !file.includes('..'), 'bad request');
+		const args = ['cutout', name as string, file as string];
+		if (fillBlack === true) args.push('--fill-black');
+		const res = await engine<{subject: string; background: string; mask: string; found: string[]}>(args, 600_000);   // the first run also builds the helper
+		return {...res, project: getProject(name as string)};
+	});
 	ipcMain.handle('media:peaks', async (_e, name: unknown, src: unknown, beats: unknown) => {
 		need(isProjectName(name) && typeof src === 'string', 'bad request');
 		const prefix = `projects/${projectSlug(name as string)}/`;
@@ -209,7 +216,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=') || x.startsWith('--assistant-test=') || x.startsWith('--live-test=')),
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=') || x.startsWith('--assistant-test=') || x.startsWith('--live-test=') || x.startsWith('--depth-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -258,6 +265,42 @@ const renderTest = async (win: BrowserWindow, project: string) => {
 			return 'OK ' + JSON.stringify(done);
 		} catch (e) { return 'FAILED ' + e.message; }
 	})()`);
+	console.log(result);
+	app.quit();
+};
+
+/** `electron . --depth-test=<project>::<picture>`: cut a picture's subject out through the project page, save a picture, quit. */
+const depthTest = async (win: BrowserWindow, arg: string) => {
+	const [project, file] = arg.split('::');
+	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+	await wait(1500);
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		try {
+			location.hash = 'project/' + encodeURIComponent(${JSON.stringify(project)});
+			await new Promise((r) => setTimeout(r, 1500));
+			[...document.querySelectorAll('button')].find((b) => b.textContent === 'Give a picture depth').click();
+			await new Promise((r) => setTimeout(r, 400));
+			const select = document.querySelector('.tool select');
+			Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, ${JSON.stringify(file)});
+			select.dispatchEvent(new Event('change', {bubbles: true}));
+			await new Promise((r) => setTimeout(r, 200));
+			document.querySelector('form.tool').requestSubmit();
+			for (let i = 0; i < 300; i++) {
+				await new Promise((r) => setTimeout(r, 500));
+				const err = document.querySelector('.tool .error');
+				if (err) return 'FAILED ' + err.textContent;
+				const imgs = [...document.querySelectorAll('.result.layers img')];
+				if (imgs.length === 2 && imgs.every((im) => im.complete && im.naturalWidth > 0)) {
+					document.querySelector('.result.layers').scrollIntoView({block: 'center'});
+					await new Promise((r) => setTimeout(r, 400));
+					return 'OK ' + imgs.map((im) => im.naturalWidth + 'x' + im.naturalHeight).join(' ') + ' | ' + [...document.querySelectorAll('.result.layers figcaption')].map((f) => f.textContent).join(' , ');
+				}
+			}
+			return 'FAILED no result after waiting';
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	mkdirSync('docs/app', {recursive: true});
+	writeFileSync('docs/app/project-depth.png', (await win.webContents.capturePage()).toPNG());
 	console.log(result);
 	app.quit();
 };
@@ -400,6 +443,8 @@ void app.whenReady().then(() => {
 	if (at) void assistantTest(win, at.slice('--assistant-test='.length));
 	const lt = process.argv.find((x) => x.startsWith('--live-test='));
 	if (lt) void liveTest(win, lt.slice('--live-test='.length));
+	const dt = process.argv.find((x) => x.startsWith('--depth-test='));
+	if (dt) void depthTest(win, dt.slice('--depth-test='.length));
 	const tt = process.argv.find((x) => x.startsWith('--tools-test='));
 	if (tt) void toolsTest(win, tt.slice('--tools-test='.length));
 	const rt = process.argv.find((x) => x.startsWith('--render-test='));

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('tibeb', {
 	narrate: (req: unknown) => call('voice:narrate', req),
 	commonsSearch: (query: string) => call('commons:search', query),
 	commonsAdd: (name: string, title: string) => call('commons:add', name, title),
+	cutout: (name: string, file: string, fillBlack: boolean) => call('picture:cutout', name, file, fillBlack),
 	balance: (project: string, src: string, time: number) => call('media:balance', project, src, time),
 	peaks: (project: string, src: string, beats: boolean) => call('media:peaks', project, src, beats),
 	narrations: (project: string) => call('edit:narrations', project),

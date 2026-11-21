@@ -25,6 +25,7 @@ interface Window {
 		narrate(req: {project: string; text: string; name: string; voice: string; provider: 'edge' | 'say'}): Promise<NarrationResult>;
 		commonsSearch(query: string): Promise<CommonsResult[]>;
 		commonsAdd(name: string, title: string): Promise<{file: string; license: string; notes: string[]; project: ProjectDetail}>;
+		cutout(name: string, file: string, fillBlack: boolean): Promise<{subject: string; background: string; mask: string; found: string[]; project: ProjectDetail}>;
 		balance(project: string, src: string, time: number): Promise<{balance: number[]; notes: string[]}>;
 		peaks(project: string, src: string, beats: boolean): Promise<Peaks>;
 		narrations(project: string): Promise<{name: string; audio: string; duration: number; words: {text: string; start: number; end: number; cue: number}[]}[]>;

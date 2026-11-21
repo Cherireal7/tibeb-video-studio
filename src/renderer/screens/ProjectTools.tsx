@@ -111,17 +111,62 @@ const Pictures = ({project, onChange}: {project: ProjectDetail; onChange: (p: Pr
 	);
 };
 
-/** Things you make inside a project: a narration from a script, real pictures with their licence. */
+const Depth = ({project, onChange}: {project: ProjectDetail; onChange: (p: ProjectDetail) => void}) => {
+	const pictures = project.files.filter((f) => f.kind === 'image' && !f.file.startsWith('stills/layers/') && !f.file.startsWith('stills/plates/') && /\.(jpe?g|png|webp|heic|tiff?)$/i.test(f.file));
+	const [file, setFile] = useState(pictures[0]?.file ?? '');
+	const [round, setRound] = useState(false);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState('');
+	const [done, setDone] = useState<{subject: string; background: string; found: string[]} | null>(null);
+	const cut = async () => {
+		setBusy(true);
+		setError('');
+		setDone(null);
+		try {
+			const r = await window.tibeb.cutout(project.name, file, round);
+			setDone(r);
+			onChange(r.project);
+		} catch (e) {
+			setError(clean(e));
+		} finally {
+			setBusy(false);
+		}
+	};
+	if (!pictures.length) return <div className="tool"><p className="dim">Add a picture to the project first (drop it on the project, or use “Find real pictures”).</p></div>;
+	const url = (rel: string) => media(`projects/${project.name}/${rel}`) + `?t=${Date.now()}`;
+	return (
+		<form className="tool" onSubmit={(e) => { e.preventDefault(); void cut(); }}>
+			<div className="bar plain">
+				<label className="field grow2"><span>Picture</span><select value={file} onChange={(e) => setFile(e.target.value)}>{pictures.map((f) => <option key={f.file} value={f.file}>{f.file}</option>)}</select></label>
+				<label className="field check"><input type="checkbox" checked={round} onChange={(e) => setRound(e.target.checked)} /><span>Round fisheye picture</span></label>
+				<button className="primary" disabled={busy || !file}>{busy ? 'Cutting out…' : 'Cut out the subject'}</button>
+			</div>
+			<p className="dim small">Splits the picture into its subject and a background with the subject painted out, so the two can move against each other and the picture gets depth. Done on this Mac; nothing is sent anywhere.</p>
+			{error ? <p className="error" role="alert">{error}</p> : null}
+			{done ? (
+				<div className="result plain layers">
+					<figure><div className="thumb checker"><img alt="The subject, cut out" src={url(done.subject)} /></div><figcaption className="dim small">{done.subject}</figcaption></figure>
+					<figure><div className="thumb"><img alt="The background with the subject painted out" src={url(done.background)} /></div><figcaption className="dim small">{done.background}</figcaption></figure>
+					<div className="dim small">{done.found.length ? `Found ${done.found.length} subject${done.found.length > 1 ? 's' : ''}.` : ''} Both files keep the picture’s credit. In a DeskStory photo scene, the background is the picture and the subject is its front layer.</div>
+				</div>
+			) : null}
+		</form>
+	);
+};
+
+/** Things you make inside a project: a narration from a script, real pictures with their licence, depth layers for a picture. */
 export const Tools = ({project, onChange}: {project: ProjectDetail; onChange: (p: ProjectDetail) => void}) => {
-	const [open, setOpen] = useState<'' | 'voice' | 'pictures'>('');
+	const [open, setOpen] = useState<'' | 'voice' | 'pictures' | 'depth'>('');
 	return (
 		<div className="tools">
 			<div className="row">
 				<button aria-expanded={open === 'voice'} onClick={() => setOpen(open === 'voice' ? '' : 'voice')}>Narration from a script</button>
 				<button aria-expanded={open === 'pictures'} onClick={() => setOpen(open === 'pictures' ? '' : 'pictures')}>Find real pictures</button>
+				<button aria-expanded={open === 'depth'} onClick={() => setOpen(open === 'depth' ? '' : 'depth')}>Give a picture depth</button>
 			</div>
 			{open === 'voice' ? <Narration project={project} onChange={onChange} /> : null}
 			{open === 'pictures' ? <Pictures project={project} onChange={onChange} /> : null}
+			{open === 'depth' ? <Depth project={project} onChange={onChange} /> : null}
 		</div>
 	);
 };
