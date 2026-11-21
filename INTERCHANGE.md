@@ -7,7 +7,10 @@ Final Cut and tools that do not exist yet plug in the same way.
 
 Status on 2026-11-21: phases I0 and I1 are built (`resolve-assist handoff`, "Send to editor" in the app): layered
 package with OTIO and FCPXML. The timeline files are well-formed but have not been opened in Resolve, Premiere or
-Final Cut yet. The CapCut adapter (C0 onward) is not started. Facts checked on this Mac are marked ✅, assumptions ❓.
+Final Cut yet. CapCut: an experimental writer exists (`resolve-assist capcut-draft`). On CapCut 9.7.1 (App Store build) a generated
+project appears in CapCut's project list with the right length; whether it opens correctly in the editor still has to be
+confirmed by opening it. It was written from the structure of an empty CapCut draft plus the commonly used segment and
+material layout, not from a hand-built reference, so fields may be missing. Native text and read-back (C2, C3) are not started. Facts checked on this Mac are marked ✅, assumptions ❓.
 
 ![Interchange](docs/interchange.png)
 
