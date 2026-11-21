@@ -29,6 +29,8 @@ interface Window {
 		peaks(project: string, src: string, beats: boolean): Promise<Peaks>;
 		loadEdit(project: string): Promise<{doc: EditDoc; created: boolean; slug: string}>;
 		saveEdit(project: string, doc: EditDoc): Promise<boolean>;
+		capcutCreate(project: string, format: string): Promise<{name: string; editable_titles: number; next: string}>;
+		capcutPull(project: string, apply: boolean): Promise<CapcutPull>;
 		handoff(project: string, format: string): Promise<{counts: Record<string, number>; notes: string[]; files: number}>;
 		exportEdit(project: string, format: string, name: string): Promise<{file: string; config: string}>;
 		templates(): Promise<Template[]>;
@@ -43,6 +45,7 @@ interface Window {
 // Motion Studio source is imported by path alias; it is type-checked in its own repo.
 declare module '@motion/*';
 type Peaks = {duration: number; per_second: number; peaks: number[]; bpm?: number; beats?: number[]; downbeats?: number[]};
+type CapcutPull = {draft: string; summary: string; changes: {clip: string; field: string; from: unknown; to: unknown}[]; deleted: string[]; added_in_capcut: {kind: string; file?: string; text?: string; start: number; length: number}[]; applied?: boolean};
 type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; duck?: {under: string; amount: number; ranges?: [number, number][]}; clips: EditClip[]};
 type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};

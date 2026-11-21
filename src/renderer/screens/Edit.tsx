@@ -278,6 +278,37 @@ const Edit = ({initial}: {initial: string}) => {
 			setHanding(false);
 		}
 	};
+	const [pulled, setPulled] = useState<CapcutPull | null>(null);
+	const toCapcut = async () => {
+		if (!doc) return;
+		setHanding(true);
+		setStatus('Building a CapCut project: cutting clips and rendering text overlays…');
+		try {
+			await window.tibeb.saveEdit(project, doc);
+			const r = await window.tibeb.capcutCreate(project, format);
+			setStatus(`CapCut project “${r.name}” created. ${r.next}`);
+		} catch (e) {
+			setProblem(clean(e));
+		} finally {
+			setHanding(false);
+		}
+	};
+	const fromCapcut = async (apply: boolean) => {
+		try {
+			const r = await window.tibeb.capcutPull(project, apply);
+			if (apply) {
+				const fresh = await window.tibeb.loadEdit(project);
+				past.current.push(doc!);
+				setDoc(fresh.doc);
+				setPulled(null);
+				setStatus(`Applied from CapCut: ${r.summary}. The previous edit was kept as a backup file.`);
+			} else {
+				setPulled(r);
+			}
+		} catch (e) {
+			setProblem(clean(e));
+		}
+	};
 	const exportNow = async () => {
 		if (!doc) return;
 		setRender({busy: true, percent: 0, file: ''});
@@ -314,11 +345,25 @@ const Edit = ({initial}: {initial: string}) => {
 				</div>
 				<div className="row">
 					{render.file ? <button onClick={() => void window.tibeb.reveal(project, 'exports')}>Show export</button> : null}
-					<button disabled={handing || render.busy || Boolean(problem)} onClick={() => void handoffNow()} title="Every clip as its own file, plus a timeline file and instructions, to keep editing in CapCut or Resolve">{handing ? 'Preparing…' : 'Send to editor'}</button>
+					<button onClick={() => void fromCapcut(false)} title="Read back what you changed in the CapCut project made from this edit">Changes from CapCut</button>
+					<button disabled={handing || render.busy || Boolean(problem)} onClick={() => void toCapcut()} title="Experimental: writes a new CapCut project with every clip on its own track, then opens CapCut">{handing ? 'Preparing…' : 'Open in CapCut'}</button>
+					<button disabled={handing || render.busy || Boolean(problem)} onClick={() => void handoffNow()} title="Every clip as its own file, plus a timeline file and instructions, for Resolve or any other editor">Layers folder</button>
 					<button className="primary" disabled={render.busy || handing || Boolean(problem)} onClick={() => void exportNow()}>{render.busy ? `Exporting ${render.percent}%` : 'Export video'}</button>
 				</div>
 			</div>
 			{problem ? <p className="error" role="alert">{problem}</p> : null}
+			{pulled ? (
+				<div className="pulled" role="region" aria-label="Changes from CapCut">
+					<div className="row between"><strong>From CapCut project “{pulled.draft}”: {pulled.summary}</strong>
+						<span className="row"><button className="small primary" disabled={!pulled.changes.length && !pulled.deleted.length} onClick={() => void fromCapcut(true)}>Apply to this edit</button><button className="small" onClick={() => setPulled(null)}>Close</button></span></div>
+					<ul>
+						{pulled.changes.map((c, i) => <li key={i}><b>{c.clip}</b> {c.field}: {String(c.from)} → {String(c.to)}</li>)}
+						{pulled.deleted.map((d) => <li key={d}><b>{d}</b> was removed in CapCut</li>)}
+						{pulled.added_in_capcut.map((a, i) => <li key={`a${i}`} className="dim">added in CapCut (stays there): {a.file ?? a.text} at {a.start}s</li>)}
+						{!pulled.changes.length && !pulled.deleted.length && !pulled.added_in_capcut.length ? <li className="dim">Nothing differs. Save the project in CapCut first if you just changed it.</li> : null}
+					</ul>
+				</div>
+			) : null}
 			<div className="estage">
 				<div className="viewer">
 					<Player ref={player} component={Timeline} inputProps={doc} durationInFrames={Math.max(1, Math.round(doc.duration * FPS))} fps={FPS} compositionWidth={w} compositionHeight={h}

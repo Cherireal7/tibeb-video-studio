@@ -112,6 +112,21 @@ const registerIpc = () => {
 		void shell.openPath(projectPath(name as string, 'handoff'));
 		return res;
 	});
+	// Experimental: a real CapCut project from the edit (hand-off first, then the draft writer in the engine).
+	ipcMain.handle('capcut:create', async (_e, name: unknown, format: unknown) => {
+		need(isProjectName(name) && (format === '9x16' || format === '16x9'), 'bad request');
+		await engine(['handoff', name as string, '--format', format as string, '--motion-dir', motionDir()], 3_600_000);
+		const res = await engine<{name: string; editable_titles: number; next: string}>(['capcut-draft', name as string], 600_000);
+		spawn('open', ['-a', 'CapCut'], {detached: true, stdio: 'ignore'}).unref();
+		return res;
+	});
+	ipcMain.handle('capcut:pull', async (_e, name: unknown, apply: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		const {drafts} = await engine<{drafts: {name: string; project: string}[]}>(['capcut-list']);
+		const draft = drafts.find((d) => d.project === name);
+		need(Boolean(draft), 'No CapCut project was made from this edit yet. Use “Open in CapCut” first.');
+		return engine(['capcut-pull', draft!.name, ...(apply ? ['--apply'] : [])], 120_000);
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
