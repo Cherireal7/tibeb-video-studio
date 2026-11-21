@@ -183,3 +183,21 @@ button.pad{align-self:flex-start;white-space:normal;text-align:left}
 .sidetabs{display:flex;gap:6px}
 .sidetabs button{flex:1;font-weight:400;color:var(--dim);padding:5px 8px}
 .sidetabs button[aria-selected=true]{color:var(--text);font-weight:600;border-color:var(--accent)}
+
+.section{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.section summary{cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint)}
+.section[open] summary{margin-bottom:10px}
+.wheels{display:flex;gap:10px;justify-content:space-between;margin-bottom:10px;align-items:flex-start}
+.wheelbox{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11.5px;color:var(--dim)}
+.wheel{width:84px;height:84px;border-radius:50%;position:relative;cursor:crosshair;touch-action:none;
+	background:radial-gradient(circle,#3a3944 0,#24232c 62%,transparent 64%),conic-gradient(from 90deg,#ff5a5a,#ff5ad2,#6a5aff,#4ad2ff,#5aff7a,#ffd24a,#ff5a5a)}
+.wheel i{position:absolute;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:#fff;border:2px solid #131217;pointer-events:none}
+.curve{background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:crosshair;touch-action:none}
+.histo{flex:1;display:flex;flex-direction:column;gap:5px;font-size:11.5px;min-width:0}
+.histo svg{width:100%;height:110px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.krow{display:grid;grid-template-columns:104px 1fr;gap:8px;align-items:start;margin-bottom:8px;font-size:12.5px}
+.klabel{color:var(--dim);padding-top:4px}
+.klist{display:flex;flex-wrap:wrap;gap:6px}
+.key{display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 8px}
+.key b{font-weight:600;font-size:11.5px;color:var(--yellow,#f5c451)} .key input{width:62px;padding:2px 6px;font-size:12px} .key button{padding:0 6px}
+.kf{position:absolute;bottom:2px;width:7px;height:7px;margin-left:-3.5px;background:#f5c451;transform:rotate(45deg);pointer-events:none}

@@ -27,7 +27,9 @@ export const Chat = ({project, ideas = IDEAS, context, before, compact}: {projec
 		setLines([]);
 		setBusy(false);
 	}, [project]);
-	useEffect(() => end.current?.scrollIntoView({block: 'end'}), [lines]);
+	useEffect(() => {
+		void end.current?.scrollIntoView({block: 'end'}); // newer browsers return a promise here; an effect must not return it
+	}, [lines]);
 	const send = async (prompt: string) => {
 		if (!prompt.trim() || busy || !project) return;
 		setLines((l) => [...l, {who: 'you', text: prompt.trim()}]);

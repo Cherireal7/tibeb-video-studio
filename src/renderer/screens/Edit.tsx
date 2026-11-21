@@ -6,6 +6,7 @@ import {z} from 'zod';
 import {go, media} from '../App';
 import {SchemaForm} from '../SchemaForm';
 import {Chat} from './Assistant';
+import {ColourTools, Keyframes} from './ClipTools';
 
 const FPS = 30;
 const SIZES: Record<string, [number, number]> = {'9x16': [1080, 1920], '16x9': [1920, 1080]};
@@ -16,7 +17,7 @@ const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remo
 /** Inspector forms come from the same schemas the renderer validates with. */
 const formSchema = (kind: string): JsonSchema => {
 	const s = z.toJSONSchema(kind === 'text' ? textClipSchema : kind === 'audio' ? audioClipSchema : mediaClipSchema, {unrepresentable: 'any'}) as JsonSchema;
-	const {id: _id, kind: _kind, balance: _balance, ...properties} = s.properties ?? {};
+	const {id: _id, kind: _kind, balance: _balance, wheels: _wheels, curve: _curve, keys: _keys, ...properties} = s.properties ?? {};
 	return {...s, properties, required: (s.required ?? []).filter((k) => k !== 'id' && k !== 'kind')};
 };
 // Waveforms and beats are measured once per file by the engine and remembered for the session.
@@ -266,7 +267,12 @@ const Edit = ({initial}: {initial: string}) => {
 		change((d) => ({...d, tracks: d.tracks.map((t) => (t.id === trackId ? {...t, duck: {under: voice.id, amount: 0.3, ...(ranges.length ? {ranges: ranges.slice(0, 400)} : {})}} : t))}));
 		setStatus(ranges.length ? `Music dips to 30 % in ${ranges.length} spoken stretch${ranges.length === 1 ? '' : 'es'}.` : 'Music dips under the voice clips.');
 	};
-	const GRADE = ['look', 'lookStrength', 'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'balance'];
+	const GRADE = ['look', 'lookStrength', 'exposure', 'contrast', 'saturation', 'temperature', 'tint', 'balance', 'wheels', 'curve'];
+	const patchClip = (patch: Partial<EditClip>) => sel && change((d) => mapClip(d, sel, (c) => {
+		const next = {...c, ...patch} as EditClip;
+		for (const [k, v] of Object.entries(patch)) if (v === undefined) delete next[k];
+		return next;
+	}));
 	const [gradeNote, setGradeNote] = useState('');
 	const autoBalance = async () => {
 		if (!sel || !selected || typeof selected.src !== 'string') return;
@@ -412,8 +418,13 @@ const Edit = ({initial}: {initial: string}) => {
 									{gradeNote ? <span className="dim small">{gradeNote}</span> : null}
 								</div>
 							) : null}
+							{(selected.kind === 'video' || selected.kind === 'image') && typeof selected.src === 'string' && selected.src.startsWith(`projects/${slug}/`) ? (
+								<ColourTools clip={selected} video={selected.kind === 'video'} time={Number(selected.in ?? 0) + Math.max(0, Math.min(selected.length, now - selected.start))}
+									url={'/_workspace/' + `projects/${project}/${selected.src.replace(`projects/${slug}/`, '')}`.split('/').map(encodeURIComponent).join('/')} onChange={patchClip} />
+							) : null}
+							<Keyframes clip={selected} now={now} onChange={patchClip} />
 							<SchemaForm key={`${sel?.track}-${sel?.clip}`} schema={formSchema(selected.kind)} value={selected} label="Clip" files={files.map((f) => `projects/${slug}/${f.file}`)}
-								onChange={(v) => sel && change((d) => mapClip(d, sel, (c) => ({...(v as EditClip), id: c.id, kind: c.kind, ...(c.balance ? {balance: c.balance} : {})})))} />
+								onChange={(v) => sel && change((d) => mapClip(d, sel, (c) => ({...(v as EditClip), id: c.id, kind: c.kind, ...Object.fromEntries(['balance', 'wheels', 'curve', 'keys'].filter((k) => c[k] !== undefined).map((k) => [k, c[k]]))})))} />
 						</>
 					) : (
 						<>
@@ -463,6 +474,7 @@ const Edit = ({initial}: {initial: string}) => {
 										{c.kind === 'audio' && Number(c.fadeIn) > 0 ? <i className="fade in" style={{width: Math.min(c.length, Number(c.fadeIn)) * pps}} /> : null}
 										{c.kind === 'audio' && Number(c.fadeOut) > 0 ? <i className="fade out" style={{width: Math.min(c.length, Number(c.fadeOut)) * pps}} /> : null}
 										{t.duck ? (t.duck.ranges ?? []).filter(([a, b]) => b > c.start && a < c.start + c.length).map(([a, b]) => <i key={a} className="ducked" style={{left: (Math.max(a, c.start) - c.start) * pps, width: (Math.min(b, c.start + c.length) - Math.max(a, c.start)) * pps}} />) : null}
+										{Object.values((c.keys ?? {}) as Record<string, {t: number}[]>).flat().map((k, i) => <i key={`k${i}`} className="kf" style={{left: Math.min(c.length, k.t) * pps}} />)}
 										<span>{label(c)}</span>
 										<i className="grip" onPointerDown={(e) => startDrag(e, t.id, c, 'trim')} />
 									</div>

@@ -5,8 +5,8 @@ pick sounds and graphics, build animated scenes from templates, and hand the res
 export it. It runs on your Mac, keeps your media on your disk, and works with an AI assistant without
 depending on one.
 
-> Status: early. Every screen in the sidebar works today in a first version. Keyframes and the remaining
-> colour tools (wheels, curve, scopes) are planned; see the [roadmap](#roadmap).
+> Status: early. Every screen in the sidebar works today in a first version. The remaining
+> colour scopes (waveform, vectorscope) and first-run setup are planned; see the [roadmap](#roadmap).
 
 ![Projects](docs/app/projects.png)
 
@@ -20,7 +20,7 @@ depending on one.
 | **Find real pictures** | Inside a project: search Wikimedia Commons, see each picture's licence, add it with licence, author and source recorded in the project's `CREDITS.md`. |
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
-| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance. Music can dip automatically while the voice speaks. **Send to editor** exports the edit as layers (cut clips, each text as a transparent overlay, audio stems, looks, an OTIO/FCPXML timeline and a README) for Resolve or any editor. **Open in CapCut** (experimental) writes a real CapCut project with every clip on its own track and editable titles; **Changes from CapCut** reads back what you moved, trimmed, deleted or retyped there and applies it to the edit after you confirm. |
+| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. Audio clips show their waveform, the music's beats are marked and edits snap to them. Picture clips take a colour look with a strength, exposure, contrast, saturation, temperature and tint, plus one-click auto balance, three colour wheels (shadows, midtones, highlights), a tone curve and a histogram that warns about clipping. Scale, position, opacity, text size and volume can be keyframed. Music can dip automatically while the voice speaks. **Send to editor** exports the edit as layers (cut clips, each text as a transparent overlay, audio stems, looks, an OTIO/FCPXML timeline and a README) for Resolve or any editor. **Open in CapCut** (experimental) writes a real CapCut project with every clip on its own track and editable titles; **Changes from CapCut** reads back what you moved, trimmed, deleted or retyped there and applies it to the edit after you confirm. |
 | **Record** | Start and stop OBS recordings (screen, camera, voice) and file the result straight into a project. |
 | **Assistant** | Also available inside Edit as "Ask Claude": it knows the playhead and the selected clip, edits the timeline file, and the editor shows the change immediately (undo restores the previous version). A conversation with Claude Code about the current project. It reads the brief and files and can use the studio's tools (pictures, narration, captions, kits, hand-off); no shell access from this panel. Uses your own Claude Code sign-in. |
 | **Deliver** | Check each export before posting (shape, resolution, loudness about −14 LUFS, peaks, length) and copy the post text with "Edit by Cheri" and the picture credits. |
@@ -75,7 +75,7 @@ assistant session in the workspace.
 | M0 Foundations | launcher, library, editor choice, project kits | done |
 | M1 Shell | Projects, Library, Setup | done |
 | M2 Create | template forms, render into a project | first version |
-| M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no keyframes yet) |
+| M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version |
 | M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats, snapping and ducking done |
 | M5 Assistant | Claude panel working on the same timeline file | first version: chat with studio tools, also docked in the editor; changes Claude makes to the timeline appear at once and can be undone |
 | M6 Hand-off | layered export, CapCut and Resolve, recording | layered export done (OTIO/FCPXML not yet opened in an editor); experimental CapCut project writer and read-back done; recording planned |

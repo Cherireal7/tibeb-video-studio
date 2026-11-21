@@ -221,6 +221,7 @@ const createWindow = () => {
 
 /** `electron . --shots=<dir>`: save a picture of each screen and quit (used to check the UI). */
 const takeShots = async (win: BrowserWindow, dir: string) => {
+	win.webContents.on('console-message', (_e, lvl, msg) => { if (lvl >= 3) console.log('PAGE ERROR:', msg.slice(0, 300)); });
 	mkdirSync(dir, {recursive: true});
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
@@ -234,6 +235,8 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 				c.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, clientX: r.left + 10, clientY: r.top + 5, pointerId: 1}));
 				c.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, clientX: r.left + 10, clientY: r.top + 5, pointerId: 1})); } })()`);
 			await wait(900);
+			await win.webContents.executeJavaScript(`document.querySelectorAll('.inspector details').forEach((d) => { d.open = true; })`);
+			await wait(2500);
 			writeFileSync(join(dir, 'edit-clip.png'), (await win.webContents.capturePage()).toPNG());
 		}
 	}
@@ -364,12 +367,18 @@ void app.whenReady().then(() => {
 			let path = decodeURIComponent(url.pathname).replace(/^\/+/, '');
 			let root = workspaceDir();
 			if (url.hostname === 'app') {
-				const motion = path.startsWith('_motion/');
-				root = motion ? join(motionDir(), 'public') : join(__dirname, '..', 'renderer');
-				path = motion ? path.slice('_motion/'.length) : path || 'index.html';
+				// media://app/_workspace/… is the workspace again, on the page's own origin, so a canvas may read the pixels (histogram)
+				const motion = path.startsWith('_motion/'), ws = path.startsWith('_workspace/');
+				root = motion ? join(motionDir(), 'public') : ws ? workspaceDir() : join(__dirname, '..', 'renderer');
+				path = motion ? path.slice('_motion/'.length) : ws ? path.slice('_workspace/'.length) : path || 'index.html';
 			}
 			const file = safeJoin(root, path);
-			return net.fetch(pathToFileURL(file).toString(), {headers: request.headers});
+			// Files are readable by the page's own canvas (histograms), hence the open CORS header; they are local files only.
+			return net.fetch(pathToFileURL(file).toString(), {headers: request.headers}).then((res) => {
+				const headers = new Headers(res.headers);
+				headers.set('Access-Control-Allow-Origin', '*');
+				return new Response(res.body, {status: res.status, statusText: res.statusText, headers});
+			});
 		} catch {
 			return new Response('not found', {status: 404});
 		}
