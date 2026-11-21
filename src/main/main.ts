@@ -4,8 +4,9 @@ import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {loadEdit, saveEdit} from './edit';
 import {engine} from './engine';
-import {getTemplates, render, type RenderRequest} from './motion';
+import {getTemplates, motionDir, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
 import {addToKit, copyToInbox, getLibrary, getProject, listProjects, projectPath} from './store';
 
@@ -76,6 +77,21 @@ const registerIpc = () => {
 		const res = await engine<{file: string; license: string; notes: string[]}>(['commons', title as string, '--add', name as string], 180_000);
 		return {...res, project: getProject(name as string)};
 	});
+	ipcMain.handle('edit:load', (_e, name: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		return loadEdit(name as string);
+	});
+	ipcMain.handle('edit:save', (_e, name: unknown, doc: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		return saveEdit(name as string, doc);
+	});
+	ipcMain.handle('edit:export', async (e, name: unknown, format: unknown, file: unknown) => {
+		need(isProjectName(name) && typeof format === 'string' && typeof file === 'string', 'bad request');
+		const {doc} = loadEdit(name as string);
+		const done = await render({project: name as string, template: 'Timeline', format: format as string, name: file as string, alpha: false, props: doc}, (p) => e.sender.send('create:progress', p));
+		await engine(['intake', name as string]).catch(() => undefined);
+		return done;
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -109,7 +125,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=')),
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -119,7 +135,7 @@ const createWindow = () => {
 		return {action: 'deny'};
 	});
 	win.webContents.on('will-navigate', (e) => e.preventDefault());
-	void win.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
+	void win.loadURL('media://app/index.html');
 	return win;
 };
 
@@ -129,9 +145,9 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
 	const first = listProjects()[0]?.name ?? '';
-	for (const [name, hash] of [['projects', '#projects'], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
+	for (const [name, hash] of [['projects', '#projects'], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
-		await wait(name === 'setup' ? 5000 : 2200);
+		await wait(name === 'setup' ? 5000 : name === 'edit' ? 6000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
 	}
 	app.quit();
@@ -180,11 +196,43 @@ const toolsTest = async (win: BrowserWindow, project: string) => {
 	app.quit();
 };
 
+/** `electron . --edit-test=<project>`: build a small project, open its first cut, save it and export it through the page. */
+const editTest = async (win: BrowserWindow, project: string) => {
+	const {copyFileSync} = await import('node:fs');
+	await engine(['new-project', project]);
+	const lib = join(workspaceDir(), 'library');
+	for (const f of ['backgrounds/mesh-aurora-9x16.png', 'backgrounds/grainy-coral-9x16.png', 'music/chill-house-30s.wav']) copyFileSync(join(lib, f), join(projectPath(project, 'inbox'), f.split('/')[1]));
+	await engine(['intake', project]);
+	await new Promise((r) => setTimeout(r, 1500));
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		try {
+			const {doc, created} = await window.tibeb.loadEdit(${JSON.stringify(project)});
+			doc.duration = 6;
+			await window.tibeb.saveEdit(${JSON.stringify(project)}, doc);
+			const again = await window.tibeb.loadEdit(${JSON.stringify(project)});
+			const done = await window.tibeb.exportEdit(${JSON.stringify(project)}, '9x16', 'edit-test');
+			return 'OK created=' + created + ' reloaded=' + !again.created + ' clips=' + doc.tracks.map((t) => t.id + ':' + t.clips.length).join(',') + ' ' + done.file;
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	console.log(result);
+	app.quit();
+};
+
 void app.whenReady().then(() => {
 	protocol.handle('media', (request) => {
 		try {
 			const url = new URL(request.url);
-			const file = safeJoin(workspaceDir(), decodeURIComponent(url.pathname).replace(/^\/+/, ''));
+			// media://app/…            the app's own page and scripts
+			// media://app/_motion/…    Motion Studio's public folder (fonts, sounds, linked project media)
+			// media://workspace/…      the workspace (library, projects)
+			let path = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+			let root = workspaceDir();
+			if (url.hostname === 'app') {
+				const motion = path.startsWith('_motion/');
+				root = motion ? join(motionDir(), 'public') : join(__dirname, '..', 'renderer');
+				path = motion ? path.slice('_motion/'.length) : path || 'index.html';
+			}
+			const file = safeJoin(root, path);
 			return net.fetch(pathToFileURL(file).toString(), {headers: request.headers});
 		} catch {
 			return new Response('not found', {status: 404});
@@ -192,11 +240,13 @@ void app.whenReady().then(() => {
 	});
 	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 		callback({responseHeaders: {...details.responseHeaders,
-			'Content-Security-Policy': ["default-src 'self'; img-src 'self' media: data: https://upload.wikimedia.org https://thumb.wikimedia.org; media-src media:; font-src 'self' media:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'"]}});
+			'Content-Security-Policy': ["default-src 'self'; img-src 'self' media: data: https://upload.wikimedia.org https://thumb.wikimedia.org; media-src media: data: blob:; font-src 'self' media:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; connect-src media:; object-src 'none'; base-uri 'none'"]}});
 	});
 	registerIpc();
 	const win = createWindow();
 	if (shotsArg) void takeShots(win, shotsArg.slice('--shots='.length));
+	const et = process.argv.find((x) => x.startsWith('--edit-test='));
+	if (et) void editTest(win, et.slice('--edit-test='.length));
 	const tt = process.argv.find((x) => x.startsWith('--tools-test='));
 	if (tt) void toolsTest(win, tt.slice('--tools-test='.length));
 	const rt = process.argv.find((x) => x.startsWith('--render-test='));

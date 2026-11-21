@@ -5,8 +5,8 @@ pick sounds and graphics, build animated scenes from templates, and hand the res
 export it. It runs on your Mac, keeps your media on your disk, and works with an AI assistant without
 depending on one.
 
-> Status: early. Projects, Library, Create and Setup work today. The timeline editor, sound tools,
-> assistant panel and editor hand-off are planned; see the [roadmap](#roadmap).
+> Status: early. Projects, Library, Create, a first Edit screen and Setup work today. Sound tools, colour,
+> the assistant panel and editor hand-off are planned; see the [roadmap](#roadmap).
 
 ![Projects](docs/app/projects.png)
 
@@ -20,9 +20,11 @@ depending on one.
 | **Find real pictures** | Inside a project: search Wikimedia Commons, see each picture's licence, add it with licence, author and source recorded in the project's `CREDITS.md`. |
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
 | **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
+| **Edit** (first version) | A timeline per project (`edit.json`): video, image, text and audio clips on tracks, with a live preview that uses the same renderer as the export. Drag clips to move them, drag the right edge to trim, split at the playhead, add text or project files, change any property in the inspector, undo/redo, autosave, export. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
 ![Find real pictures](docs/app/project-tools.png)
+![Edit](docs/app/edit.png)
 ![Create](docs/app/create.png)
 ![Library](docs/app/library.png)
 
@@ -53,6 +55,7 @@ npm test           # path-safety and project-store tests
 npm run shots      # save a picture of every screen to docs/app/
 node_modules/.bin/electron . --tools-test="App Test"    # narration + picture search through the app
 node_modules/.bin/electron . --render-test="App Test"   # one template rendered through the app
+node_modules/.bin/electron . --edit-test="App Test"     # first cut, save, reload and export through the editor
 ```
 
 With the launcher from resolve-assist installed, `tibeb app` opens it from anywhere and `tibeb` starts an
@@ -67,7 +70,7 @@ assistant session in the workspace.
 | M0 Foundations | launcher, library, editor choice, project kits | done |
 | M1 Shell | Projects, Library, Setup | done |
 | M2 Create | template forms, render into a project | first version |
-| M3 Editor | timeline: cut, trim, layers, looks, keyframes | planned |
+| M3 Editor | timeline: cut, trim, layers, looks, keyframes | first version (no looks or keyframes yet) |
 | M4 Sound | voice, music and SFX tracks, beats, ducking | planned |
 | M5 Assistant | Claude panel working on the same timeline file | planned |
 | M6 Hand-off | layered export, CapCut and Resolve, recording | planned |
@@ -94,7 +97,7 @@ work editable in CapCut and other editors.
 
 ```
 src/main/       paths.ts (workspace + path guard) · store.ts (projects, library) · engine.ts (engine CLI)
-                motion.ts (templates, renders) · main.ts (window, IPC, media:// protocol) · preload.ts
+                motion.ts (templates, renders, media linking) · edit.ts (edit.json) · main.ts (window, IPC, media:// protocol) · preload.ts
 src/renderer/   App.tsx · SchemaForm.tsx (forms from template schemas) · screens/ (Projects, Project,
                 Library, Create, Setup)
 design/         mock-ups and diagrams, rendered to docs/ with Remotion

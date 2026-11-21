@@ -25,6 +25,9 @@ interface Window {
 		narrate(req: {project: string; text: string; name: string; voice: string; provider: 'edge' | 'say'}): Promise<NarrationResult>;
 		commonsSearch(query: string): Promise<CommonsResult[]>;
 		commonsAdd(name: string, title: string): Promise<{file: string; license: string; notes: string[]; project: ProjectDetail}>;
+		loadEdit(project: string): Promise<{doc: EditDoc; created: boolean; slug: string}>;
+		saveEdit(project: string, doc: EditDoc): Promise<boolean>;
+		exportEdit(project: string, format: string, name: string): Promise<{file: string; config: string}>;
 		templates(): Promise<Template[]>;
 		render(req: {project: string; template: string; format: string; name: string; alpha: boolean; props: unknown}): Promise<{file: string; config: string}>;
 		onRenderProgress(cb: (p: {percent: number; line: string}) => void): () => void;
@@ -33,3 +36,9 @@ interface Window {
 		startSession(): Promise<boolean>;
 	};
 }
+
+// Motion Studio source is imported by path alias; it is type-checked in its own repo.
+declare module '@motion/*';
+type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio'; [key: string]: unknown};
+type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; clips: EditClip[]};
+type EditDoc = {version: 1; duration: number; background: string; credit?: string; tracks: EditTrack[]};

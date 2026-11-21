@@ -1,13 +1,16 @@
-import {useEffect, useState} from 'react';
+import {Suspense, lazy, useEffect, useState} from 'react';
 import {Create} from './screens/Create';
 import {Library} from './screens/Library';
 import {Project} from './screens/Project';
 import {Projects} from './screens/Projects';
 import {Setup} from './screens/Setup';
 
+// The editor pulls in Remotion and Motion Studio's components, so it loads only when opened.
+const Edit = lazy(() => import('./screens/Edit'));
+
 const NAV: {id: string; label: string; soon?: boolean}[] = [
 	{id: 'projects', label: 'Projects'}, {id: 'library', label: 'Library'},
-	{id: 'create', label: 'Create'}, {id: 'edit', label: 'Edit', soon: true}, {id: 'record', label: 'Record', soon: true},
+	{id: 'create', label: 'Create'}, {id: 'edit', label: 'Edit'}, {id: 'record', label: 'Record', soon: true},
 	{id: 'assistant', label: 'Assistant', soon: true}, {id: 'deliver', label: 'Deliver', soon: true}, {id: 'setup', label: 'Setup'},
 ];
 
@@ -45,7 +48,7 @@ export const App = () => {
 				<button className="session" onClick={() => void window.tibeb.startSession()}>Start a session</button>
 			</nav>
 			<main className="main">
-				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
+				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'edit' ? <Suspense fallback={<p className="dim">Opening the editor…</p>}><Edit initial={rest.join('/')} /></Suspense> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
 			</main>
 		</div>
 	);

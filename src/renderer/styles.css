@@ -117,3 +117,27 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--fain
 .pad{margin:0 10px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file{display:flex;flex-direction:column}
 button.pad{align-self:flex-start;white-space:normal;text-align:left}
+
+.edit{display:flex;flex-direction:column;height:calc(100vh - 48px - 52px);min-height:560px}
+.edit .head{margin-bottom:10px}
+.estage{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;flex:1;min-height:0}
+.viewer{background:#0e0d12;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:10px;min-height:0;overflow:hidden}
+.inspector{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.inspector .fields{grid-template-columns:1fr 1fr}
+.ithumb{max-height:110px;max-width:100%;border-radius:8px;align-self:flex-start}
+.perr{color:var(--bad);padding:20px;font-size:13px}
+.tbar{display:flex;gap:8px;align-items:center;padding:10px 0 8px;flex-wrap:wrap}
+.tbar button{padding:5px 11px;font-weight:400} .tbar select{padding:5px 9px;max-width:230px}
+.tl{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:auto;height:236px;flex-shrink:0;touch-action:none}
+.lanes{position:relative;min-width:100%}
+.lane{display:flex;height:38px;border-bottom:1px solid var(--line)}
+.lane.ruler{height:24px;position:sticky;top:0;background:var(--panel);z-index:2;cursor:pointer}
+.tname{width:120px;flex-shrink:0;border-right:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:12.5px;font-weight:600;position:sticky;left:0;background:var(--panel);z-index:1}
+.tname button{padding:1px 7px;font-size:11px;font-weight:400} .tname button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
+.track{position:relative;flex:1}
+.tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);padding-left:4px;font-size:10.5px;color:var(--faint);line-height:24px}
+.clip{position:absolute;top:4px;bottom:4px;border:1px solid;border-radius:6px;overflow:hidden;cursor:grab;font-size:11.5px;display:flex;align-items:center;padding:0 12px 0 7px;white-space:nowrap;user-select:none}
+.clip.on{border-color:#fff !important;border-width:2px}
+.clip span{overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.clip .grip{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;background:#ffffff33}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;z-index:3}

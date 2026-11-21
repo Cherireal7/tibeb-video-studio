@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('tibeb', {
 	narrate: (req: unknown) => call('voice:narrate', req),
 	commonsSearch: (query: string) => call('commons:search', query),
 	commonsAdd: (name: string, title: string) => call('commons:add', name, title),
+	loadEdit: (project: string) => call('edit:load', project),
+	saveEdit: (project: string, doc: unknown) => call('edit:save', project, doc),
+	exportEdit: (project: string, format: string, name: string) => call('edit:export', project, format, name),
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),
 	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {

@@ -13,8 +13,13 @@
     "test": "tsc -p tsconfig.main.json && node --test dist/main/store.test.js"
   },
   "dependencies": {
+    "@remotion/fonts": "^4.0.545",
+    "@remotion/player": "^4.0.545",
+    "@remotion/zod-types": "^4.0.545",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.545",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
