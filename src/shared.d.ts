@@ -39,7 +39,9 @@ interface Window {
 		obsStop(project: string): Promise<{file?: string; seconds?: number; addedTo: string}>;
 		deliveryCheck(project: string, file: string): Promise<Delivery>;
 		credits(project: string): Promise<string>;
-		ask(project: string, prompt: string, session: string): Promise<boolean>;
+		ask(project: string, prompt: string, session: string, extra?: string): Promise<boolean>;
+		watchEdit(project: string): Promise<boolean>;
+		onEditExternal(cb: (project: string) => void): () => void;
 		stopAssistant(): Promise<boolean>;
 		onAssistant(cb: (e: AssistantEvent) => void): () => void;
 		templates(): Promise<Template[]>;

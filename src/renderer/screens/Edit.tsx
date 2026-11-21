@@ -5,6 +5,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {z} from 'zod';
 import {go, media} from '../App';
 import {SchemaForm} from '../SchemaForm';
+import {Chat} from './Assistant';
 
 const FPS = 30;
 const SIZES: Record<string, [number, number]> = {'9x16': [1080, 1920], '16x9': [1920, 1080]};
@@ -65,6 +66,8 @@ const Edit = ({initial}: {initial: string}) => {
 	const [status, setStatus] = useState('');
 	const [problem, setProblem] = useState('');
 	const [render, setRender] = useState<{busy: boolean; percent: number; file: string}>({busy: false, percent: 0, file: ''});
+	const [side, setSide] = useState<'inspector' | 'assistant'>('inspector');
+	const latest = useRef<EditDoc | null>(null);
 	const past = useRef<EditDoc[]>([]);
 	const future = useRef<EditDoc[]>([]);
 	const player = useRef<PlayerRef>(null);
@@ -94,6 +97,24 @@ const Edit = ({initial}: {initial: string}) => {
 		}).catch((e) => setProblem(clean(e)));
 	}, [project]);
 
+	latest.current = doc;
+	// The assistant (or a terminal session) changed edit.json: show it at once, keep the old version on the undo stack.
+	useEffect(() => {
+		if (!project) return;
+		void window.tibeb.watchEdit(project);
+		return window.tibeb.onEditExternal((p) => {
+			if (p !== project) return;
+			void window.tibeb.loadEdit(project).then((e) => {
+				const check = timelineSchema.safeParse(e.doc);
+				if (!check.success) return setProblem(`The edit was changed outside the editor but is not valid (${check.error.issues[0].path.join(' › ')}: ${check.error.issues[0].message}). Showing your last version.`);
+				if (latest.current) past.current = [...past.current.slice(-80), latest.current];
+				future.current = [];
+				setDoc(e.doc);
+				setProblem('');
+				setStatus('Updated by the assistant. Undo brings back the previous version.');
+			}).catch((err) => setProblem(clean(err)));
+		});
+	}, [project]);
 	const persist = useCallback((next: EditDoc) => {
 		window.clearTimeout(saveTimer.current);
 		const check = timelineSchema.safeParse(next);
@@ -371,7 +392,15 @@ const Edit = ({initial}: {initial: string}) => {
 						errorFallback={({error}: {error: Error}) => <div className="perr">Preview problem: {error.message}</div>} />
 				</div>
 				<aside className="inspector">
-					{selected ? (
+					<div className="sidetabs" role="tablist">
+						<button role="tab" aria-selected={side === 'inspector'} onClick={() => setSide('inspector')}>Inspector</button>
+						<button role="tab" aria-selected={side === 'assistant'} onClick={() => setSide('assistant')}>Ask Claude</button>
+					</div>
+					{side === 'assistant' ? (
+						<Chat compact project={project} ideas={['Tighten the timing so nothing overlaps.', 'Make the title larger and place it in the top third.', 'Give every picture a slow zoom and the same look.']}
+							before={async () => { window.clearTimeout(saveTimer.current); if (latest.current) await window.tibeb.saveEdit(project, latest.current); }}
+							context={() => `playhead at ${now.toFixed(2)} s; format ${format}; ${selected ? `selected clip id "${selected.id}" (${selected.kind}) on track "${sel?.track}"` : 'no clip selected'}.`} />
+					) : selected ? (
 						<>
 							<div className="row between"><strong>{label(selected)}</strong><span className="dim small">{selected.kind}</span></div>
 							{typeof selected.src === 'string' && /\.(png|jpe?g|webp)$/i.test(selected.src) ? <img className="ithumb" alt="" src={media(`projects/${project}/${selected.src.replace(`projects/${slug}/`, '')}`)} /> : null}

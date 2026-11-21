@@ -5,7 +5,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {askAssistant, stopAssistant} from './assistant';
-import {loadEdit, saveEdit} from './edit';
+import {loadEdit, saveEdit, watchEdit} from './edit';
 import {engine} from './engine';
 import {getTemplates, motionDir, projectSlug, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
@@ -96,6 +96,11 @@ const registerIpc = () => {
 		need(isProjectName(name), 'not a valid project name');
 		return loadEdit(name as string);
 	});
+	ipcMain.handle('edit:watch', (e, name: unknown) => {
+		need(isProjectName(name), 'not a valid project name');
+		watchEdit(name as string, () => !e.sender.isDestroyed() && e.sender.send('edit:external', name));
+		return true;
+	});
 	ipcMain.handle('edit:save', (_e, name: unknown, doc: unknown) => {
 		need(isProjectName(name), 'not a valid project name');
 		return saveEdit(name as string, doc);
@@ -156,10 +161,11 @@ const registerIpc = () => {
 			return '';
 		}
 	});
-	ipcMain.handle('assistant:ask', async (e, name: unknown, prompt: unknown, session: unknown) => {
+	ipcMain.handle('assistant:ask', async (e, name: unknown, prompt: unknown, session: unknown, extra: unknown) => {
 		need(isProjectName(name) && typeof prompt === 'string' && prompt.trim().length > 0 && prompt.length <= 8000, 'Write a request first.');
 		need(session === '' || (typeof session === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(session)), 'bad conversation id');
-		await askAssistant(name as string, prompt as string, session as string, (ev) => e.sender.send('assistant:event', ev));
+		need(extra === undefined || (typeof extra === 'string' && extra.length <= 600), 'bad context');
+		await askAssistant(name as string, prompt as string, session as string, (ev) => e.sender.send('assistant:event', ev), (extra as string | undefined) ?? '');
 		return true;
 	});
 	ipcMain.handle('assistant:stop', () => {
@@ -199,7 +205,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=') || x.startsWith('--assistant-test=')),
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=') || x.startsWith('--edit-test=') || x.startsWith('--assistant-test=') || x.startsWith('--live-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -322,6 +328,32 @@ const assistantTest = async (win: BrowserWindow, project: string) => {
 	app.quit();
 };
 
+/** `electron . --live-test=<project>`: ask the assistant to change one title and check the open editor picks it up. */
+const liveTest = async (win: BrowserWindow, project: string) => {
+	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+	await wait(1500);
+	await win.webContents.executeJavaScript(`location.hash = 'edit/' + encodeURIComponent(${JSON.stringify(project)})`);
+	await wait(5000);
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		try {
+			let external = 0;
+			window.tibeb.onEditExternal(() => external++);
+			const events = [];
+			window.tibeb.onAssistant((e) => events.push(e));
+			const stamp = 'Luther ' + String(Date.now()).slice(-4);
+			await window.tibeb.ask(${JSON.stringify(project)}, 'In the edit.json of this project change the text of the clip with id t1 to: ' + stamp + ' . Change nothing else.', '', 'playhead at 0.00 s; no clip selected.');
+			await new Promise((r) => setTimeout(r, 2500));
+			const doc = (await window.tibeb.loadEdit(${JSON.stringify(project)})).doc;
+			const t1 = doc.tracks.flatMap((t) => t.clips).find((c) => c.id === 't1');
+			const shown = [...document.querySelectorAll('.clip span')].some((n) => n.textContent === stamp);
+			const status = document.querySelector('[role=status]')?.textContent ?? '';
+			return 'OK file=' + (t1.text === stamp) + ' editorShowsIt=' + shown + ' externalEvents=' + external + ' tools=' + JSON.stringify(events.filter((e) => e.type === 'tool').map((e) => e.name)) + ' status=' + status.slice(0, 60);
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	console.log(result);
+	app.quit();
+};
+
 void app.whenReady().then(() => {
 	protocol.handle('media', (request) => {
 		try {
@@ -353,6 +385,8 @@ void app.whenReady().then(() => {
 	if (et) void editTest(win, et.slice('--edit-test='.length));
 	const at = process.argv.find((x) => x.startsWith('--assistant-test='));
 	if (at) void assistantTest(win, at.slice('--assistant-test='.length));
+	const lt = process.argv.find((x) => x.startsWith('--live-test='));
+	if (lt) void liveTest(win, lt.slice('--live-test='.length));
 	const tt = process.argv.find((x) => x.startsWith('--tools-test='));
 	if (tt) void toolsTest(win, tt.slice('--tools-test='.length));
 	const rt = process.argv.find((x) => x.startsWith('--render-test='));

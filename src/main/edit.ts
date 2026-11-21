@@ -1,4 +1,5 @@
-import {existsSync, readFileSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {type FSWatcher, existsSync, readFileSync, watch, writeFileSync} from 'node:fs';
 import {linkProjectMedia, projectSlug} from './motion';
 import {getProject, projectPath} from './store';
 
@@ -56,6 +57,7 @@ export const loadEdit = (project: string): {doc: EditDoc; created: boolean; slug
 		const doc = JSON.parse(readFileSync(file, 'utf8')) as unknown;
 		if (!looksLikeEdit(doc)) throw new Error('edit.json in this project is not a timeline this version understands');
 		linkProjectMedia(project, doc);
+		ours.set(project, hash(readFileSync(file, 'utf8')));
 		return {doc, created: false, slug: projectSlug(project)};
 	}
 	const doc = defaultEdit(project);
@@ -63,9 +65,39 @@ export const loadEdit = (project: string): {doc: EditDoc; created: boolean; slug
 	return {doc, created: true, slug: projectSlug(project)};
 };
 
+const ours = new Map<string, string>(); // project -> hash of what this app last wrote or loaded
+const hash = (text: string) => createHash('sha1').update(text).digest('hex');
+
 export const saveEdit = (project: string, doc: unknown): boolean => {
 	if (!looksLikeEdit(doc) || JSON.stringify(doc).length > 4_000_000) throw new Error('not a valid timeline');
 	linkProjectMedia(project, doc);
-	writeFileSync(projectPath(project, 'edit.json'), JSON.stringify(doc, null, 1));
+	const text = JSON.stringify(doc, null, 1);
+	ours.set(project, hash(text));
+	writeFileSync(projectPath(project, 'edit.json'), text);
 	return true;
+};
+
+let watcher: FSWatcher | null = null;
+
+/** Tell the page when edit.json is changed by something other than this app (assistant, terminal). One project at a time. */
+export const watchEdit = (project: string, onChange: () => void): void => {
+	watcher?.close();
+	watcher = null;
+	const dir = projectPath(project, '');
+	let timer: NodeJS.Timeout | undefined;
+	watcher = watch(dir, (_event, file) => {
+		if (file !== 'edit.json') return;
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			try {
+				const now = hash(readFileSync(projectPath(project, 'edit.json'), 'utf8'));
+				if (now !== ours.get(project)) {
+					ours.set(project, now);
+					onChange();
+				}
+			} catch {
+				// file mid-write or removed: the next event will catch up
+			}
+		}, 350);
+	});
 };

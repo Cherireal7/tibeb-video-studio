@@ -174,3 +174,12 @@ button.pad{align-self:flex-start;white-space:normal;text-align:left}
 .msg.tool{color:var(--teal);font-size:12.5px} .msg.note{color:var(--dim);font-size:12.5px}
 .ask{display:flex;gap:10px;margin-top:12px;align-items:flex-end}
 .ask textarea{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;color:var(--text);resize:none}
+
+.chatbox{display:flex;flex-direction:column;flex:1;min-height:0}
+.chatbox .chat{flex:1;min-height:0}
+.chatbox.compact .chat{padding:10px;font-size:13px;border-radius:10px;background:var(--bg)}
+.chatbox.compact .ask{margin-top:8px} .chatbox.compact .chips{flex-direction:column;align-items:flex-start}
+.chatbox.compact .chip{text-align:left;border-radius:10px}
+.sidetabs{display:flex;gap:6px}
+.sidetabs button{flex:1;font-weight:400;color:var(--dim);padding:5px 8px}
+.sidetabs button[aria-selected=true]{color:var(--text);font-weight:600;border-color:var(--accent)}

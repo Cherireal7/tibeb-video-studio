@@ -24,16 +24,21 @@ export const stopAssistant = () => {
  * One turn with Claude Code in print mode, in the workspace folder (so it reads the same guide as a
  * terminal session). `session` continues an earlier conversation. Output is streamed as events.
  */
-export const askAssistant = (project: string, prompt: string, session: string, emit: (e: AssistantEvent) => void): Promise<void> =>
+export const askAssistant = (project: string, prompt: string, session: string, emit: (e: AssistantEvent) => void, extra = ''): Promise<void> =>
 	new Promise((resolvePromise, reject) => {
 		if (current) return reject(new Error('The assistant is still answering. Stop it first.'));
 		const direct = join(homedir(), '.local', 'bin', 'claude');
 		const context = `You are helping inside the Tibeb app. Current project: "${project}" in projects/${project}/. `
 			+ 'Read its brief.md and project.json before anything else and follow the workspace guide. The person sees your reply in a narrow panel: answer briefly in plain sentences, '
-			+ 'say exactly which files you changed, and stop to ask before anything that costs money or cannot be undone. Changes to edit.json appear in the Edit screen when it is reopened.';
+			+ 'say exactly which files you changed, and stop to ask before anything that costs money or cannot be undone. '
+			+ `The timeline is projects/${project}/edit.json (format: "Editing a timeline" in the workspace guide). The editor shows your changes to it immediately and the person can undo them, `
+			+ 'so change only what was asked, keep every other field, keep clip ids unique, and never leave the file invalid.'
+			+ (extra ? ` Editor state right now: ${extra}` : '');
 		const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--allowedTools', ...TOOLS, '--append-system-prompt', context, ...(session ? ['--resume', session] : [])];
 		// The binary is started directly when found; otherwise a login shell locates it. Arguments are never pasted into a command string.
-		const child = existsSync(direct) ? spawn(direct, args, {cwd: workspaceDir()}) : spawn('/bin/zsh', ['-ilc', 'exec claude "$@"', '--', ...args], {cwd: workspaceDir()});
+		// stdin is closed: with an open pipe Claude Code waits for more input before it starts working
+		const io = {cwd: workspaceDir(), stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe']};
+		const child = existsSync(direct) ? spawn(direct, args, io) : spawn('/bin/zsh', ['-ilc', 'exec claude "$@"', '--', ...args], io);
 		current = child;
 		let buffer = '', sessionId = session, finished = false, errors = '';
 		child.stdout.on('data', (chunk: Buffer) => {
