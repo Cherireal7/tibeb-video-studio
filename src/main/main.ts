@@ -5,6 +5,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {engine} from './engine';
+import {getTemplates, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
 import {addToKit, copyToInbox, getLibrary, getProject, listProjects, projectPath} from './store';
 
@@ -50,6 +51,15 @@ const registerIpc = () => {
 		need(isProjectName(name) && typeof file === 'string', 'bad request');
 		return addToKit(name as string, file as string);
 	});
+	ipcMain.handle('create:templates', () => getTemplates());
+	ipcMain.handle('create:render', async (e, req: unknown) => {
+		const r = req as Partial<RenderRequest>;
+		need(isProjectName(r?.project) && typeof r.template === 'string' && typeof r.format === 'string' && typeof r.name === 'string' && typeof r.props === 'object' && r.props !== null, 'bad request');
+		const done = await render({project: r.project as string, template: r.template as string, format: r.format as string, name: r.name as string, alpha: Boolean(r.alpha), props: r.props},
+			(p) => e.sender.send('create:progress', p));
+		await engine(['intake', r.project as string]).catch(() => undefined);
+		return done;
+	});
 	ipcMain.handle('setup:doctor', async () => ({...(await engine<object>(['doctor', '--json'])), workspace: workspaceDir()}));
 	ipcMain.handle('setup:setEditor', (_e, editor: unknown) => {
 		need(typeof editor === 'string' && EDITORS.includes(editor), 'editor must be resolve, capcut or none');
@@ -74,7 +84,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg,
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -94,11 +104,26 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
 	const first = listProjects()[0]?.name ?? '';
-	for (const [name, hash] of [['projects', '#projects'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
+	for (const [name, hash] of [['projects', '#projects'], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
 		await wait(name === 'setup' ? 5000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());
 	}
+	app.quit();
+};
+
+/** `electron . --render-test=<project>`: render the first PathStory example through the page's own API, print the result, quit. */
+const renderTest = async (win: BrowserWindow, project: string) => {
+	await new Promise((r) => setTimeout(r, 1500));
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		try {
+			const t = (await window.tibeb.templates()).find((x) => x.id === 'PathStory');
+			await window.tibeb.createProject(${JSON.stringify(project)});
+			const done = await window.tibeb.render({project: ${JSON.stringify(project)}, template: t.id, format: '9x16', name: 'app-render-test', alpha: false, props: t.examples[0].props});
+			return 'OK ' + JSON.stringify(done);
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	console.log(result);
 	app.quit();
 };
 
@@ -119,5 +144,7 @@ void app.whenReady().then(() => {
 	registerIpc();
 	const win = createWindow();
 	if (shotsArg) void takeShots(win, shotsArg.slice('--shots='.length));
+	const rt = process.argv.find((x) => x.startsWith('--render-test='));
+	if (rt) void renderTest(win, rt.slice('--render-test='.length));
 });
 app.on('window-all-closed', () => app.quit());

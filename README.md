@@ -5,6 +5,8 @@ hand-off. Tibeb (ጥበብ) means craft. Plans: [PLAN.md](PLAN.md) · [INTERCHAN
 
 Status: **M1 in progress.** Working today: Projects (create, open, drop files to sort and index them),
 Library (search, listen, preview, add to a project's kit), Setup (checks with fixes, editor choice).
+Create (M2, first version): pick a Motion Studio template, fill in a form generated from its schema, render
+into a project with progress; the config is saved in `renders/` so it can be rendered again.
 Everything else in the sidebar is marked "soon".
 
 ## Run
@@ -14,6 +16,7 @@ npm install
 npm start            # builds and opens the app
 npm test             # path safety and project store tests
 npm run shots        # saves a picture of every screen to docs/app/ (used to check the UI)
+node_modules/.bin/electron . --render-test="App Test"   # renders one template through the app, prints OK/FAILED
 ```
 
 It needs the engine next to it: [resolve-assist](../resolve-assist) with its `.venv` (see that README),

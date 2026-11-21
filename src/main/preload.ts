@@ -11,6 +11,13 @@ contextBridge.exposeInMainWorld('tibeb', {
 	reveal: (name: string, sub: string) => call('projects:reveal', name, sub),
 	library: () => call('library:get'),
 	addToKit: (name: string, file: string) => call('library:addToKit', name, file),
+	templates: () => call('create:templates'),
+	render: (req: unknown) => call('create:render', req),
+	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {
+		const fn = (_e: unknown, p: {percent: number; line: string}) => cb(p);
+		ipcRenderer.on('create:progress', fn);
+		return () => ipcRenderer.removeListener('create:progress', fn);
+	},
 	doctor: () => call('setup:doctor'),
 	setEditor: (editor: string) => call('setup:setEditor', editor),
 	startSession: () => call('session:start'),

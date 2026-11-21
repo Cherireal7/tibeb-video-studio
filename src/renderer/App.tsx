@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react';
+import {Create} from './screens/Create';
 import {Library} from './screens/Library';
 import {Project} from './screens/Project';
 import {Projects} from './screens/Projects';
@@ -6,7 +7,7 @@ import {Setup} from './screens/Setup';
 
 const NAV: {id: string; label: string; soon?: boolean}[] = [
 	{id: 'projects', label: 'Projects'}, {id: 'library', label: 'Library'},
-	{id: 'create', label: 'Create', soon: true}, {id: 'edit', label: 'Edit', soon: true}, {id: 'record', label: 'Record', soon: true},
+	{id: 'create', label: 'Create'}, {id: 'edit', label: 'Edit', soon: true}, {id: 'record', label: 'Record', soon: true},
 	{id: 'assistant', label: 'Assistant', soon: true}, {id: 'deliver', label: 'Deliver', soon: true}, {id: 'setup', label: 'Setup'},
 ];
 
@@ -44,7 +45,7 @@ export const App = () => {
 				<button className="session" onClick={() => void window.tibeb.startSession()}>Start a session</button>
 			</nav>
 			<main className="main">
-				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
+				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
 			</main>
 		</div>
 	);
