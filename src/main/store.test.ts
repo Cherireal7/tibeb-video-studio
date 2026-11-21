@@ -48,3 +48,18 @@ test('projects are read from the folder: stage, cover, goal, inbox, kit', () => 
 	assert.deepEqual(store.copyToInbox('Demo', [src, src + '.missing']), {copied: ['drop.png'], skipped: ['drop.png.missing']});
 	assert.deepEqual(store.copyToInbox('Demo', [src]).skipped, ['drop.png']); // never overwrites
 });
+
+test('project media is linked into Motion Studio only for this project and only real files', () => {
+	const motion = join(root, 'motion');
+	mkdirSync(join(root, 'cfg', '.config', 'studio'), {recursive: true});
+	process.env.HOME = join(root, 'cfg');
+	writeFileSync(join(root, 'cfg', '.config', 'studio', 'config'), `motion=${motion}\n`);
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const m = require('./motion') as typeof import('./motion');
+	assert.equal(m.projectSlug('Martin Luther Short'), 'martin-luther-short');
+	const linked = m.linkProjectMedia('Demo', {image: 'projects/demo/stills/a.png', list: [{src: 'projects/demo/stills/missing.png'}, 'projects/other/x.png'], n: 3});
+	assert.deepEqual(linked, []); // stills/a.png is only in project.json in this fixture, not on disk
+	writeFileSync(join(root, 'projects', 'Demo', 'stills', 'a.png'), 'png');
+	assert.deepEqual(m.linkProjectMedia('Demo', {image: 'projects/demo/stills/a.png'}), ['stills/a.png']);
+	assert.throws(() => m.linkProjectMedia('Demo', {image: 'projects/demo/../../escape'}));
+});

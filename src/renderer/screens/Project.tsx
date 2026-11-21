@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {go, media} from '../App';
+import {Tools} from './ProjectTools';
 
 const ORDER = ['video', 'image', 'map', 'voice', 'music', 'reference', 'document', 'captions', 'export'];
 const TITLES: Record<string, string> = {video: 'Footage', image: 'Stills', map: 'Maps', voice: 'Voice', music: 'Music', reference: 'References', document: 'Documents', captions: 'Captions', export: 'Exports'};
@@ -56,6 +57,7 @@ export const Project = ({name}: {name: string}) => {
 				</div>
 			</div>
 			{note ? <p className="note" role="status">{note}</p> : null}
+			<Tools project={p} onChange={setP} />
 			<div className="cols">
 				<div>
 					{groups.length === 0 ? <p className="empty">Nothing in this project yet.</p> : groups.map(([kind, files]) => (
@@ -71,6 +73,7 @@ export const Project = ({name}: {name: string}) => {
 										</div>
 										<div className="fname" title={f.file}>{f.file.split('/').pop()}</div>
 										<div className="dim small">{[length(f.duration), f.width && f.height ? `${f.width}×${f.height}` : '', size(f.bytes)].filter(Boolean).join(' · ')}</div>
+										{f.license ? <div className={`lic${/sa\b/i.test(f.license.replace(/-/g, ' ')) ? ' warn' : ''}`} title={[f.author, f.source].filter(Boolean).join(' · ')}>{f.license}</div> : null}
 									</div>
 								))}
 							</div>

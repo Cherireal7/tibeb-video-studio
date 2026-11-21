@@ -1,6 +1,9 @@
 import {useState} from 'react';
 
-type Props = {schema: JsonSchema; value: unknown; onChange: (v: unknown) => void; label: string; required?: boolean; depth?: number};
+type Props = {schema: JsonSchema; value: unknown; onChange: (v: unknown) => void; label: string; required?: boolean; depth?: number; files?: string[]};
+
+// Text inputs that hold a media path offer the project's own files.
+const MEDIA_FIELD = /image|media|map|narration|music|aroll|video|logo|photo|screen|src|opener/i;
 
 const title = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase());
 const typeOf = (s: JsonSchema) => (Array.isArray(s.type) ? s.type.find((t) => t !== 'null') : s.type);
@@ -41,7 +44,7 @@ const JsonField = ({value, onChange, label}: {value: unknown; onChange: (v: unkn
 	);
 };
 
-export const SchemaForm = ({schema, value, onChange, label, required = true, depth = 0}: Props) => {
+export const SchemaForm = ({schema, value, onChange, label, required = true, depth = 0, files = []}: Props) => {
 	const t = typeOf(schema);
 	const hint = schema.description && schema.description !== '__remotion-color' ? schema.description : '';
 	if (schema.enum) {
@@ -63,7 +66,7 @@ export const SchemaForm = ({schema, value, onChange, label, required = true, dep
 					<span className="color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(String(value)) ? String(value) : '#000000'} onChange={(e) => onChange(e.target.value)} />
 						<input value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} aria-label={`${label} value`} /></span>
 				) : long ? <textarea rows={2} value={String(value ?? '')} maxLength={schema.maxLength} onChange={(e) => onChange(e.target.value)} />
-					: <input value={String(value ?? '')} maxLength={schema.maxLength} onChange={(e) => onChange(e.target.value)} />}
+					: <input value={String(value ?? '')} maxLength={schema.maxLength} list={files.length && MEDIA_FIELD.test(label) ? 'project-files' : undefined} onChange={(e) => onChange(e.target.value)} />}
 				{hint ? <small>{hint}</small> : null}
 			</label>
 		);
@@ -83,7 +86,7 @@ export const SchemaForm = ({schema, value, onChange, label, required = true, dep
 	if (t === 'object' && schema.properties) {
 		const obj = (value ?? {}) as Record<string, unknown>;
 		const fields = Object.entries(schema.properties).map(([k, s]) => (
-			<SchemaForm key={k} schema={s} label={title(k)} value={obj[k]} required={(schema.required ?? []).includes(k)} depth={depth + 1}
+			<SchemaForm key={k} schema={s} label={title(k)} value={obj[k]} required={(schema.required ?? []).includes(k)} depth={depth + 1} files={files}
 				onChange={(v) => {
 					const next = {...obj, [k]: v};
 					if (v === undefined) delete next[k];
@@ -99,7 +102,7 @@ export const SchemaForm = ({schema, value, onChange, label, required = true, dep
 			<fieldset className="group list"><legend>{label} <em>{list.length}</em></legend>
 				{list.map((item, i) => (
 					<div key={i} className="item">
-						<SchemaForm schema={schema.items!} label={`${i + 1}`} value={item} depth={depth + 1} onChange={(v) => onChange(list.map((x, j) => (j === i ? v : x)))} />
+						<SchemaForm schema={schema.items!} label={`${i + 1}`} value={item} depth={depth + 1} files={files} onChange={(v) => onChange(list.map((x, j) => (j === i ? v : x)))} />
 						<button type="button" className="small" disabled={list.length <= min} onClick={() => onChange(list.filter((_, j) => j !== i))} aria-label={`Remove ${label} ${i + 1}`}>Remove</button>
 					</div>
 				))}

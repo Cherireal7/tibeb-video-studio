@@ -9,6 +9,7 @@ import {getTemplates, render, type RenderRequest} from './motion';
 import {isProjectName, readConfig, safeJoin, workspaceDir} from './paths';
 import {addToKit, copyToInbox, getLibrary, getProject, listProjects, projectPath} from './store';
 
+
 const EDITORS = ['resolve', 'capcut', 'none'];
 const shotsArg = process.argv.find((a) => a.startsWith('--shots='));
 
@@ -51,6 +52,30 @@ const registerIpc = () => {
 		need(isProjectName(name) && typeof file === 'string', 'bad request');
 		return addToKit(name as string, file as string);
 	});
+	ipcMain.handle('voice:narrate', async (_e, req: unknown) => {
+		const r = req as {project?: unknown; text?: unknown; name?: unknown; voice?: unknown; provider?: unknown};
+		need(isProjectName(r?.project) && typeof r.text === 'string' && r.text.trim().length > 0 && r.text.length <= 12000, 'Write a script first (up to 12,000 characters).');
+		need(typeof r.name === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(r.name), 'Name it with letters, numbers, - or _.');
+		need(r.provider === 'edge' || r.provider === 'say', 'bad voice source');
+		need(r.voice === '' || (typeof r.voice === 'string' && /^[A-Za-z][A-Za-z ()-]{0,60}$/.test(r.voice)), 'bad voice name');
+		const dir = projectPath(r.project as string, 'docs');
+		mkdirSync(dir, {recursive: true});
+		const script = join(dir, `${r.name}.script.txt`);
+		writeFileSync(script, r.text as string);
+		const args = ['narrate', r.project as string, script, '--name', r.name as string, '--provider', r.provider as string];
+		if (r.voice) args.push('--voice', r.voice as string);
+		const res = await engine<{duration: number; cues: Record<string, number>; word_count: number; voice: string; note: string}>(args, 900_000);
+		return {...res, file: `projects/${r.project as string}/voice/${r.name as string}.wav`, project: getProject(r.project as string)};
+	});
+	ipcMain.handle('commons:search', async (_e, query: unknown) => {
+		need(typeof query === 'string' && query.trim().length > 1 && query.length <= 200, 'Type a few search words.');
+		return (await engine<{results: unknown[]}>(['commons', query as string], 120_000)).results;
+	});
+	ipcMain.handle('commons:add', async (_e, name: unknown, title: unknown) => {
+		need(isProjectName(name) && typeof title === 'string' && title.length <= 300, 'bad request');
+		const res = await engine<{file: string; license: string; notes: string[]}>(['commons', title as string, '--add', name as string], 180_000);
+		return {...res, project: getProject(name as string)};
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -84,7 +109,7 @@ const registerIpc = () => {
 
 const createWindow = () => {
 	const win = new BrowserWindow({
-		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=')),
+		width: 1440, height: 920, minWidth: 980, minHeight: 640, backgroundColor: '#131217', title: 'Tibeb', show: !shotsArg && !process.argv.some((x) => x.startsWith('--render-test=') || x.startsWith('--tools-test=')),
 		titleBarStyle: 'hiddenInset',
 		webPreferences: {preload: join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false},
 	});
@@ -127,6 +152,34 @@ const renderTest = async (win: BrowserWindow, project: string) => {
 	app.quit();
 };
 
+/** `electron . --tools-test=<project>`: exercise narration and the picture finder through the page, save a picture, quit. */
+const toolsTest = async (win: BrowserWindow, project: string) => {
+	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+	await wait(1500);
+	const result = await win.webContents.executeJavaScript(`(async () => {
+		try {
+			await window.tibeb.createProject(${JSON.stringify(project)});
+			const n = await window.tibeb.narrate({project: ${JSON.stringify(project)}, text: 'A short {mark}test of the narration.', name: 'app-test', voice: '', provider: 'say'});
+			const found = await window.tibeb.commonsSearch('Wartburg Lutherstube');
+			location.hash = 'project/' + encodeURIComponent(${JSON.stringify(project)});
+			await new Promise((r) => setTimeout(r, 1200));
+			[...document.querySelectorAll('button')].find((b) => b.textContent === 'Find real pictures').click();
+			await new Promise((r) => setTimeout(r, 300));
+			const input = document.querySelector('.tool input');
+			Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Wartburg Lutherstube');
+			input.dispatchEvent(new Event('input', {bubbles: true}));
+			await new Promise((r) => setTimeout(r, 200));
+			document.querySelector('.tool form').requestSubmit();
+			await new Promise((r) => setTimeout(r, 9000));
+			return 'OK narration ' + n.duration + 's cues ' + JSON.stringify(n.cues) + ' | commons ' + found.length + ' results, first: ' + found[0].license;
+		} catch (e) { return 'FAILED ' + e.message; }
+	})()`);
+	mkdirSync('docs/app', {recursive: true});
+	writeFileSync('docs/app/project-tools.png', (await win.webContents.capturePage()).toPNG());
+	console.log(result);
+	app.quit();
+};
+
 void app.whenReady().then(() => {
 	protocol.handle('media', (request) => {
 		try {
@@ -139,11 +192,13 @@ void app.whenReady().then(() => {
 	});
 	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 		callback({responseHeaders: {...details.responseHeaders,
-			'Content-Security-Policy': ["default-src 'self'; img-src 'self' media: data:; media-src media:; font-src 'self' media:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'"]}});
+			'Content-Security-Policy': ["default-src 'self'; img-src 'self' media: data: https://upload.wikimedia.org https://thumb.wikimedia.org; media-src media:; font-src 'self' media:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'"]}});
 	});
 	registerIpc();
 	const win = createWindow();
 	if (shotsArg) void takeShots(win, shotsArg.slice('--shots='.length));
+	const tt = process.argv.find((x) => x.startsWith('--tools-test='));
+	if (tt) void toolsTest(win, tt.slice('--tools-test='.length));
 	const rt = process.argv.find((x) => x.startsWith('--render-test='));
 	if (rt) void renderTest(win, rt.slice('--render-test='.length));
 });

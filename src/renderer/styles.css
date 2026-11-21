@@ -104,3 +104,16 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--fain
 .progress span{position:relative;display:block;padding:3px 10px;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .result{display:flex;gap:18px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
 .result video{max-height:340px;max-width:260px;border-radius:8px;background:#000}
+
+.tools{margin-top:14px}
+.tool{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:10px}
+.tools button[aria-expanded=true]{border-color:var(--accent);color:var(--accent)}
+.bar.plain{background:none;border:0;padding:0;margin:12px 0 8px}
+.grow2{flex:3 !important}
+.result.plain{background:none;border:0;padding:0;margin:10px 0 0;align-items:center}
+.result.plain audio{width:320px;height:34px}
+.lic{margin:0 10px 8px;align-self:flex-start;display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:20px;border:1px solid var(--teal);color:var(--teal)}
+.lic.warn{border-color:var(--accent);color:var(--accent)}
+.pad{margin:0 10px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file{display:flex;flex-direction:column}
+button.pad{align-self:flex-start;white-space:normal;text-align:left}

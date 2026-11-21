@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('tibeb', {
 	reveal: (name: string, sub: string) => call('projects:reveal', name, sub),
 	library: () => call('library:get'),
 	addToKit: (name: string, file: string) => call('library:addToKit', name, file),
+	narrate: (req: unknown) => call('voice:narrate', req),
+	commonsSearch: (query: string) => call('commons:search', query),
+	commonsAdd: (name: string, title: string) => call('commons:add', name, title),
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),
 	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {

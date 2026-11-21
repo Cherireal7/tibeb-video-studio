@@ -29,6 +29,12 @@ export const Create = ({initial}: {initial: string}) => {
 		return window.tibeb.onRenderProgress((p) => setState((s) => ({...s, percent: p.percent >= 0 ? p.percent : s.percent, line: p.line})));
 	}, []);
 	const t = useMemo(() => templates?.find((x) => x.id === id) ?? null, [templates, id]);
+	const [files, setFiles] = useState<string[]>([]);
+	useEffect(() => {
+		if (!project) return;
+		const prefix = `projects/${project.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project'}/`;
+		void window.tibeb.project(project).then((p) => setFiles(p.files.filter((f) => f.kind !== 'export' && f.kind !== 'document').map((f) => prefix + f.file)));
+	}, [project]);
 	const start = (tpl: Template, exampleFile?: string) => {
 		const ex = tpl.examples.find((e) => e.file === exampleFile) ?? tpl.examples[0];
 		setProps(ex ? structuredClone(ex.props) : tpl.inputs ? blank(tpl.inputs) : {});
@@ -82,7 +88,9 @@ export const Create = ({initial}: {initial: string}) => {
 								<div><p className="note">Saved to {state.file.replace(/^projects\//, '')}</p><button type="button" onClick={() => void window.tibeb.reveal(project, 'exports')}>Show in Finder</button></div>
 							</div>
 						) : null}
-						{t.inputs && props !== null ? <SchemaForm key={`${t.id}-${name === '' ? 'x' : 'k'}`} schema={t.inputs} value={props} onChange={setProps} label={t.id} /> : null}
+						<datalist id="project-files">{files.map((f) => <option key={f} value={f} />)}</datalist>
+						{files.length ? <p className="dim small">Fields for pictures, video, maps, voice and music suggest this project’s files as you type.</p> : null}
+						{t.inputs && props !== null ? <SchemaForm key={t.id} schema={t.inputs} value={props} onChange={setProps} label={t.id} files={files} /> : null}
 					</form>
 				)}
 			</div>

@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process';
-import {copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
-import {basename, join} from 'node:path';
+import {basename, dirname, join} from 'node:path';
 import {readConfig} from './paths';
 import {projectPath} from './store';
 
@@ -17,6 +17,36 @@ export const getTemplates = (): Template[] => {
 	} catch {
 		return [];
 	}
+};
+
+export const projectSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
+
+/**
+ * Motion Studio only reads media from its own public/ folder. Every input that points at a project file
+ * (`projects/<slug>/stills/x.jpg`) is hard-linked there before a render: no copy, no extra disk space.
+ */
+export const linkProjectMedia = (project: string, props: unknown): string[] => {
+	const prefix = `projects/${projectSlug(project)}/`;
+	const linked: string[] = [];
+	const visit = (v: unknown) => {
+		if (typeof v === 'string' && v.startsWith(prefix)) {
+			const rel = v.slice(prefix.length);
+			const src = projectPath(project, rel);
+			const dst = join(motionDir(), 'public', prefix, rel);
+			if (existsSync(src) && statSync(src).isFile() && !existsSync(dst)) {
+				mkdirSync(dirname(dst), {recursive: true});
+				try {
+					linkSync(src, dst);
+				} catch {
+					copyFileSync(src, dst); // another disk: fall back to a copy
+				}
+				linked.push(rel);
+			}
+		} else if (Array.isArray(v)) v.forEach(visit);
+		else if (v && typeof v === 'object') Object.values(v).forEach(visit);
+	};
+	visit(props);
+	return linked;
 };
 
 let running = false;
@@ -36,6 +66,11 @@ export const render = (req: RenderRequest, onProgress: (p: {percent: number; lin
 		mkdirSync(dir, {recursive: true});
 		const config = join(dir, `${req.name}.json`);
 		writeFileSync(config, JSON.stringify({template: req.template, format: req.format, name: req.name, alpha: req.alpha, props: req.props}, null, 2));
+		try {
+			linkProjectMedia(req.project, req.props);
+		} catch (e) {
+			return reject(e as Error);
+		}
 		running = true;
 		// A login shell finds `node` the same way the terminal does; arguments are passed as "$@", never pasted into the command.
 		const child = spawn('/bin/zsh', ['-ilc', 'exec node "$@"', '--', 'scripts/render.mjs', config, '--format', req.format], {cwd: motionDir()});

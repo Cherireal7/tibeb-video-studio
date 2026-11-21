@@ -2,7 +2,7 @@ import {cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync} from
 import {basename, extname, join} from 'node:path';
 import {isProjectName, safeJoin, workspaceDir} from './paths';
 
-export type ProjectFile = {file: string; kind: string; bytes: number; duration?: number; width?: number; height?: number};
+export type ProjectFile = {file: string; kind: string; bytes: number; duration?: number; width?: number; height?: number; license?: string; author?: string; source?: string};
 export type ProjectSummary = {name: string; updated: string; counts: Record<string, number>; cover: string | null; goal: string; stage: string; inbox: number};
 export type ProjectDetail = ProjectSummary & {files: ProjectFile[]; brief: string; prepared: string[]; hasPlan: boolean};
 export type LibraryItem = {id: string; category: string; file: string; tags: string[]; usage: string; license?: string; seconds?: number; bpm?: number};

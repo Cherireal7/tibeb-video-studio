@@ -16,10 +16,13 @@ depending on one.
 |---|---|
 | **Projects** | One folder per video. Create a project, see where each one stands (material added, prepared, planned, exported). |
 | **Project** | Drop footage, photos, maps, voice, music or references onto the window: they are copied to the inbox, sorted into folders and indexed. The brief sits beside the files. |
+| **Narration** | Inside a project: write a script, pick a voice (natural online voices incl. Amharic, or this Mac's offline voice), get the audio plus word timings and marker times for captions and scene timing. |
+| **Find real pictures** | Inside a project: search Wikimedia Commons, see each picture's licence, add it with licence, author and source recorded in the project's `CREDITS.md`. |
 | **Library** | 350 free-to-use assets generated on your machine: sound effects, music, graphics, animated overlays, transitions, backgrounds, textures, looks and open-licensed typefaces. Search, listen, preview, add to a project's kit. |
-| **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form, press Render, the video lands in the project. |
+| **Create** | 18 video templates (documentary shorts, talking-head scenes, camera-follow maps, routes and graphs, promos, text overlays). Fill in a form (media fields suggest the project's own files, which are linked into the renderer automatically), press Render, the video lands in the project. |
 | **Setup** | Checks everything the studio needs and says how to fix what is missing. Choose your editor: DaVinci Resolve, CapCut or none. |
 
+![Find real pictures](docs/app/project-tools.png)
 ![Create](docs/app/create.png)
 ![Library](docs/app/library.png)
 
@@ -48,6 +51,8 @@ npm install
 npm start          # build and open the app
 npm test           # path-safety and project-store tests
 npm run shots      # save a picture of every screen to docs/app/
+node_modules/.bin/electron . --tools-test="App Test"    # narration + picture search through the app
+node_modules/.bin/electron . --render-test="App Test"   # one template rendered through the app
 ```
 
 With the launcher from resolve-assist installed, `tibeb app` opens it from anywhere and `tibeb` starts an
@@ -77,7 +82,7 @@ work editable in CapCut and other editors.
 
 ## Design rules
 
-- **Local first.** Media never leaves the machine unless a feature says so.
+- **Local first.** Media never leaves the machine unless a feature says so. Two features go online and say so: natural narration voices (the script text goes to Microsoft) and the Wikimedia Commons picture search.
 - **Files are the database.** Projects and the library are folders with small JSON indexes.
 - **The editor is optional.** Finish in the app (planned), or hand off to DaVinci Resolve or CapCut.
 - **Do the work once.** Transcripts, cuts, indexes and render settings are saved with the project and reused.

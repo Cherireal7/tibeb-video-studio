@@ -1,5 +1,7 @@
 // Shapes passed between the main process and the page (kept in step with src/main/store.ts).
-type ProjectFile = {file: string; kind: string; bytes: number; duration?: number; width?: number; height?: number};
+type ProjectFile = {file: string; kind: string; bytes: number; duration?: number; width?: number; height?: number; license?: string; author?: string; source?: string};
+type CommonsResult = {title: string; source: string; license: string; author: string; thumb: string; free: boolean; share_alike: boolean; attribution: boolean; width?: number; height?: number};
+type NarrationResult = {duration: number; cues: Record<string, number>; word_count: number; voice: string; note: string; file: string; project: ProjectDetail};
 type ProjectSummary = {name: string; updated: string; counts: Record<string, number>; cover: string | null; goal: string; stage: string; inbox: number};
 type ProjectDetail = ProjectSummary & {files: ProjectFile[]; brief: string; prepared: string[]; hasPlan: boolean};
 type LibraryItem = {id: string; category: string; file: string; tags: string[]; usage: string; license?: string; seconds?: number; bpm?: number};
@@ -20,6 +22,9 @@ interface Window {
 		reveal(name: string, sub: string): Promise<string>;
 		library(): Promise<{root: string; items: LibraryItem[]}>;
 		addToKit(name: string, file: string): Promise<string>;
+		narrate(req: {project: string; text: string; name: string; voice: string; provider: 'edge' | 'say'}): Promise<NarrationResult>;
+		commonsSearch(query: string): Promise<CommonsResult[]>;
+		commonsAdd(name: string, title: string): Promise<{file: string; license: string; notes: string[]; project: ProjectDetail}>;
 		templates(): Promise<Template[]>;
 		render(req: {project: string; template: string; format: string; name: string; alpha: boolean; props: unknown}): Promise<{file: string; config: string}>;
 		onRenderProgress(cb: (p: {percent: number; line: string}) => void): () => void;
