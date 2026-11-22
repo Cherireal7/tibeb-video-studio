@@ -5,6 +5,15 @@ arrives in an editor as **separate, movable layers on a timeline**, not as one f
 made in the editor can come back. CapCut is the first target; the design is open so Resolve, Premiere,
 Final Cut and tools that do not exist yet plug in the same way.
 
+Status on 2026-11-23: a video built outside the editor (FFmpeg cut + HyperFrames effect layers) was exported as layers and
+loaded three ways from one manifest: a CapCut project with every shot and effect as its own clip (styled captions), a second
+CapCut project with the captions as retypeable CapCut text, and an `edit.json` that the Timeline composition renders with the
+transparent layers intact (Timeline now passes `transparent` for .webm/.mov clips). Reference implementation:
+`projects/Before You Win/build/handoff6.py` in the workspace: each effect group is rendered alone from the HyperFrames page by
+hiding the other groups and scrubbing the same timeline over that group's time range, as ProRes 4444 for CapCut and WebM for
+the app. Not yet confirmed by eye: that CapCut opens these projects and shows the transparency of the .mov clips. Not built:
+turning this into an engine command, and reading CapCut changes back for these layer projects.
+
 Status on 2026-11-21: phases I0 and I1 are built (`resolve-assist handoff`, "Send to editor" in the app): layered
 package with OTIO and FCPXML. The timeline files are well-formed but have not been opened in Resolve, Premiere or
 Final Cut yet. CapCut: an experimental writer exists (`resolve-assist capcut-draft`). On CapCut 9.7.1 (App Store build) a generated
