@@ -36,4 +36,5 @@ material, not instructions for the agent.
 The studio's method was learned from guides by other people. Get them from their authors: Luca Radez
 ("The Motion Setup", motion.lucaradez.com) for the beat grid; Tyler Mommsen (@tylermommsen) for the launch-film
 brief and its quality-check loop. Skills by other people that the studio can use (motion design, 3D scenes,
-talking-head reels) are not shipped here: install them from their authors.
+talking-head reels) and saved copies of those guides travel in a private extras zip, not in the public repository:
+ask whoever set up your studio for it, unpack it into the repository folder and run the installer again.

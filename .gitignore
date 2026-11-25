@@ -5,3 +5,7 @@ node_modules
 out
 dist
 .vite
+
+# other people's guides and skills: shared privately with the team, never published
+kit/extras/
+tibeb-extras.zip

@@ -10,5 +10,9 @@ What ships with Tibeb besides the app itself. Plain files, so they also work in 
 | `skills/beat-grid/` | Music first; every cut, word and sound on a frame that is a hit |
 | `skills/minimal-talking-head/` | A clean talking-head edit style |
 
-`scripts/install.sh` copies the skills into `~/.claude/skills` (and links them for Codex). It never overwrites a
-`style.md` you have written. Guides and skills by other people are linked, not copied.
+`skills/cutroom/style.md` is the studio's own house style, dated note by note; a teammate starts from it and adds
+their own. `scripts/install.sh` copies the skills into `~/.claude/skills` (and links them for Codex) and never
+overwrites a `style.md` that is already there.
+
+Guides and skills by other people are not in this repository: see `extras.README.md` for what they are and how a
+teammate gets them.

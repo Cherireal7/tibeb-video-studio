@@ -94,6 +94,30 @@ done
 if [ -f "$HOME/.claude/skills/cutroom/style.md" ]; then ok "your style.md (never overwritten)"; else
   miss "a style.md to hold your taste"; [ $CHECK = 0 ] && [ -d "$HOME/.claude/skills/cutroom" ] && cp "$HERE/kit/skills/cutroom/style.example.md" "$HOME/.claude/skills/cutroom/style.md"
 fi
+# Other people's guides and skills: installed when a teammate was handed the extras zip (see kit/extras.README.md).
+if [ -d "$HERE/kit/extras" ]; then
+  for s in "$HERE"/kit/extras/skills/*/; do
+    [ -d "$s" ] || continue
+    name="$(basename "$s")"
+    if [ -e "$HOME/.claude/skills/$name" ]; then ok "$name (already there)"; else miss "$name (from the extras)"; run cp -R "$s" "$HOME/.claude/skills/$name"; fi
+  done
+  for pair in "cutroom-references:cutroom/references" "beat-grid-references:beat-grid/references"; do
+    src="$HERE/kit/extras/${pair%%:*}"; dst="$HOME/.claude/skills/${pair##*:}"
+    [ -d "$src" ] || continue
+    for f in "$src"/*; do
+      [ -e "$dst/$(basename "$f")" ] && continue
+      miss "$(basename "$f") (reference copy)"; run mkdir -p "$dst"; run cp "$f" "$dst/"
+    done
+  done
+else
+  ok "no extras folder: other people's skills are skipped (kit/extras.README.md says how to get them)"
+  if [ ! -f "$HOME/.claude/skills/beat-grid/references/The-Motion-Setup.pdf" ]; then
+    if [ $CHECK = 1 ]; then echo "  would offer to download The Motion Setup from its author's site"; else
+      printf '  Download "The Motion Setup" (the beat-grid guide) from motion.lucaradez.com? [y/N] '; read -r a
+      if [ "$a" = "y" ] || [ "$a" = "Y" ]; then mkdir -p "$HOME/.claude/skills/beat-grid/references" && curl -fsSL -o "$HOME/.claude/skills/beat-grid/references/The-Motion-Setup.pdf" "https://motion.lucaradez.com/The-Motion-Setup.pdf" && ok "The Motion Setup" || echo "  could not download it; get it from the author's site"; fi
+    fi
+  fi
+fi
 [ -x "$ENGINE/scripts/skills-sync" ] && { [ $CHECK = 1 ] && echo "  would share the skills with Codex" || "$ENGINE/scripts/skills-sync" >/dev/null 2>&1 || true; }
 
 say "Workspace, library and the tibeb command"
