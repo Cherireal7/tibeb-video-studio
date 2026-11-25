@@ -46,6 +46,13 @@ interface Window {
 		onEditExternal(cb: (project: string) => void): () => void;
 		stopAssistant(): Promise<boolean>;
 		onAssistant(cb: (e: AssistantEvent) => void): () => void;
+		agents(): Promise<{agents: AgentStatus[]; credit: string}>;
+		make(req: {agent: 'claude' | 'codex'; project: string; prompt: string; session?: string}): Promise<boolean>;
+		stopMake(): Promise<boolean>;
+		onMake(cb: (e: MakeEvent) => void): () => void;
+		presets(): Promise<Preset[]>;
+		guides(): Promise<Guide[]>;
+		guide(id: string): Promise<string>;
 		templates(): Promise<Template[]>;
 		render(req: {project: string; template: string; format: string; name: string; alpha: boolean; props: unknown}): Promise<{file: string; config: string}>;
 		onRenderProgress(cb: (p: {percent: number; line: string}) => void): () => void;
@@ -65,3 +72,7 @@ type AssistantEvent = {type: 'text'; text: string} | {type: 'tool'; name: string
 type EditClip = {id: string; start: number; length: number; kind: 'video' | 'image' | 'text' | 'audio' | 'captions'; [key: string]: unknown};
 type EditTrack = {id: string; name: string; kind: 'video' | 'text' | 'audio'; muted?: boolean; duck?: {under: string; amount: number; ranges?: [number, number][]}; clips: EditClip[]};
 type EditDoc = {version: 1; duration: number; background: string; paper?: 'none' | 'light' | 'dark'; credit?: string; tracks: EditTrack[]};
+type AgentStatus = {id: 'claude' | 'codex'; label: string; installed: boolean; path: string; version: string; signedIn: boolean; detail: string; fix: string};
+type MakeEvent = {type: 'text'; text: string} | {type: 'step'; text: string} | {type: 'done'; ok: boolean; note: string; video: string; session: string};
+type Preset = {id: string; title: string; summary: string; needs: string; prompt: string};
+type Guide = {id: string; title: string};

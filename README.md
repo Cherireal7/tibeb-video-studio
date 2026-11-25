@@ -5,8 +5,9 @@ pick sounds and graphics, build animated scenes from templates, and hand the res
 export it. It runs on your Mac, keeps your media on your disk, and works with an AI assistant without
 depending on one.
 
-> Status: early. Every screen in the sidebar works today in a first version. The remaining
-> colour scopes (waveform, vectorscope) and first-run setup are planned; see the [roadmap](#roadmap).
+> Status: MVP (0.2). Prompt a whole video from the **Make** screen with Claude Code or Codex, using your own plan.
+> Every screen in the sidebar works in a first version. A signed, double-click installer is not built yet:
+> teammates install from source with one script (below).
 
 ![Projects](docs/app/projects.png)
 
@@ -14,6 +15,8 @@ depending on one.
 
 | Screen | What it does |
 |---|---|
+| **Make** | Prompt a video. Choose Claude Code or Codex (whichever is signed in on this Mac), a project and a starting prompt; the agent plans the sound on a beat grid, builds the picture as code, renders and checks it. Its work streams into a log and the finished video plays in the window. With Claude Code, follow-up notes continue the same conversation. |
+| **Guides** | The kit that ships with the app: how to make a video, the beat grid, house style, free picture archives, what costs money, install help, and nine prompt presets to copy. |
 | **Projects** | One folder per video. Create a project, see where each one stands (material added, prepared, planned, exported). |
 | **Project** | Drop footage, photos, maps, voice, music or references onto the window: they are copied to the inbox, sorted into folders and indexed. The brief sits beside the files. |
 | **Narration** | Inside a project: write a script, pick a voice (natural online voices incl. Amharic, or this Mac's offline voice), get the audio plus word timings and marker times for captions and scene timing. |
@@ -48,6 +51,38 @@ Everything is a plain file in one workspace folder (`~/Documents/resolve-assist`
 `projects/<name>/` holds `inbox`, `footage`, `stills`, `maps`, `voice`, `music`, `exports`, a `brief.md`
 and a `project.json` index; `library/` holds the assets and their manifest. Nothing is locked inside the app.
 
+## Install for a team
+
+```bash
+git clone <this repository>
+cd tibeb
+./scripts/install.sh --check     # see what is there and what would be done
+./scripts/install.sh             # install what is missing (asks for your end credit line)
+tibeb app
+```
+
+The script sets up a Mac from scratch: Homebrew tools, the engine and template repositories next to this one
+(both private: each person needs access, or point `TIBEB_ENGINE_REPO` / `TIBEB_MOTION_REPO` at your own copies),
+Python environments, a `hyperframes-studio` folder, the kit's skills, the asset library, the studio tools for both
+agents and the app itself. It is safe to run again and never overwrites a `style.md`. Each person signs in to
+their own agent (`claude` then `/login`, or `codex login`).
+
+What ships in [`kit/`](kit/README.md): prompt presets, guides, and the skills `cutroom`, `beat-grid` and
+`minimal-talking-head`. Guides and skills by other people are linked, not copied.
+
+## How a Make run works
+
+`src/main/agents.ts` starts the chosen agent in the workspace with an argument list (never a shell string):
+
+- **Claude Code**: print mode with streamed JSON, edits accepted, and the tools a video needs (shell, files,
+  skills, the studio's MCP tools), plus access to the HyperFrames folder.
+- **Codex**: `codex exec --json` in its workspace-write sandbox with network access for rendering.
+
+Every run gets the same brief: read the project, start with `cutroom`, plan the sound first with `beat-grid`,
+build with HyperFrames, copy the result to the project's `exports/`, use nothing paid, verify the file, and end
+with a `VIDEO:` line. The app then shows the newest export. A run can read and write the workspace and run
+commands on the Mac; the screen says so before the button is pressed.
+
 ## Run it
 
 Requirements: macOS, Node 20+, and the two sibling repos set up next to this one
@@ -81,7 +116,8 @@ assistant session in the workspace.
 | M4 Sound | voice, music and SFX tracks, beats, ducking | waveforms, beats, snapping and ducking done |
 | M5 Assistant | Claude panel working on the same timeline file | first version: chat with studio tools, also docked in the editor; changes Claude makes to the timeline appear at once and can be undone |
 | M6 Hand-off | layered export, CapCut and Resolve, recording | layered export done (OTIO/FCPXML not yet opened in an editor); experimental CapCut project writer and read-back done; recording planned |
-| M7 Share | first-run setup, signed build, docs | planned |
+| M7 Share | first-run setup, signed build, docs | install script, kit and in-app guides done; signed build planned |
+| M8 Make | prompt a video with Claude Code or Codex | first version: agent picker, presets, live log, result player, notes |
 
 Details: [PLAN.md](PLAN.md) for the app and [INTERCHANGE.md](INTERCHANGE.md) for keeping AI and Remotion
 work editable in CapCut and other editors.
@@ -103,10 +139,12 @@ work editable in CapCut and other editors.
 ## Code map
 
 ```
-src/main/       paths.ts (workspace + path guard) · store.ts (projects, library) · engine.ts (engine CLI)
+src/main/       agents.ts (Claude Code and Codex runs for Make) · kit.ts (presets and guides) · paths.ts (workspace + path guard) · store.ts (projects, library) · engine.ts (engine CLI)
                 motion.ts (templates, renders, media linking) · edit.ts (edit.json) · main.ts (window, IPC, media:// protocol) · preload.ts
 src/renderer/   App.tsx · SchemaForm.tsx (forms from template schemas) · screens/ (Projects, Project,
-                Library, Create, Setup)
+                Library, Create, Setup, Make, Guides)
+kit/            prompt presets, guides and skills that ship with the app
+scripts/        install.sh (team setup; --check to preview)
 design/         mock-ups and diagrams, rendered to docs/ with Remotion
 ```
 

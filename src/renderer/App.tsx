@@ -2,7 +2,9 @@ import {Suspense, lazy, useEffect, useState} from 'react';
 import {Assistant} from './screens/Assistant';
 import {Create} from './screens/Create';
 import {Deliver} from './screens/Deliver';
+import {Guides} from './screens/Guides';
 import {Library} from './screens/Library';
+import {Make} from './screens/Make';
 import {Record} from './screens/Record';
 import {Project} from './screens/Project';
 import {Projects} from './screens/Projects';
@@ -12,9 +14,9 @@ import {Setup} from './screens/Setup';
 const Edit = lazy(() => import('./screens/Edit'));
 
 const NAV: {id: string; label: string; soon?: boolean}[] = [
-	{id: 'projects', label: 'Projects'}, {id: 'library', label: 'Library'},
+	{id: 'make', label: 'Make'}, {id: 'projects', label: 'Projects'}, {id: 'library', label: 'Library'},
 	{id: 'create', label: 'Create'}, {id: 'edit', label: 'Edit'}, {id: 'record', label: 'Record'},
-	{id: 'assistant', label: 'Assistant'}, {id: 'deliver', label: 'Deliver'}, {id: 'setup', label: 'Setup'},
+	{id: 'assistant', label: 'Assistant'}, {id: 'deliver', label: 'Deliver'}, {id: 'guides', label: 'Guides'}, {id: 'setup', label: 'Setup'},
 ];
 
 /** media://workspace/<path>: files from the workspace, served by the main process. */
@@ -51,7 +53,7 @@ export const App = () => {
 				<button className="session" onClick={() => void window.tibeb.startSession()}>Start a session</button>
 			</nav>
 			<main className="main">
-				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'edit' ? <Suspense fallback={<p className="dim">Opening the editor…</p>}><Edit initial={rest.join('/')} /></Suspense> : section === 'assistant' ? <Assistant initial={rest.join('/')} /> : section === 'record' ? <Record /> : section === 'deliver' ? <Deliver initial={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : <Projects />}
+				{section === 'project' ? <Project name={rest.join('/')} /> : section === 'edit' ? <Suspense fallback={<p className="dim">Opening the editor…</p>}><Edit initial={rest.join('/')} /></Suspense> : section === 'assistant' ? <Assistant initial={rest.join('/')} /> : section === 'record' ? <Record /> : section === 'deliver' ? <Deliver initial={rest.join('/')} /> : section === 'create' ? <Create initial={rest[0] ?? ''} /> : section === 'library' ? <Library /> : section === 'setup' ? <Setup /> : section === 'make' ? <Make initial={rest.join('/')} /> : section === 'guides' ? <Guides initial={rest[0] ?? ''} /> : <Projects />}
 			</main>
 		</div>
 	);

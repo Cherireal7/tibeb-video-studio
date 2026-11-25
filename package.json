@@ -1,6 +1,6 @@
 {
   "name": "tibeb",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tibeb: one window for making short videos (projects, library, create, edit, hand-off)",
   "private": true,
   "license": "MIT",
@@ -10,7 +10,8 @@
     "start": "npm run build && electron .",
     "shots": "npm run build && electron . --shots=docs/app",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
-    "test": "tsc -p tsconfig.main.json && node --test dist/main/store.test.js"
+    "test": "tsc -p tsconfig.main.json && node --test dist/main/store.test.js dist/main/agents.test.js",
+    "setup": "./scripts/install.sh"
   },
   "dependencies": {
     "@remotion/fonts": "^4.0.545",

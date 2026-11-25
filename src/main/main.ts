@@ -1,10 +1,12 @@
-import {BrowserWindow, app, ipcMain, net, protocol, session, shell} from 'electron';
+import {BrowserWindow, app, ipcMain, net, powerSaveBlocker, protocol, session, shell} from 'electron';
 import {spawn} from 'node:child_process';
 import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {agentStatus, creditLine, runMake, stopMake} from './agents';
 import {askAssistant, stopAssistant} from './assistant';
+import {listGuides, listPresets, readGuide} from './kit';
 import {listNarrations, loadEdit, saveEdit, watchEdit} from './edit';
 import {engine} from './engine';
 import {getTemplates, motionDir, projectSlug, render, type RenderRequest} from './motion';
@@ -183,6 +185,33 @@ const registerIpc = () => {
 		stopAssistant();
 		return true;
 	});
+	ipcMain.handle('agents:status', () => ({agents: agentStatus(), credit: creditLine()}));
+	ipcMain.handle('make:run', async (e, req: unknown) => {
+		const r = req as {agent?: unknown; project?: unknown; prompt?: unknown; session?: unknown};
+		need(r?.agent === 'claude' || r?.agent === 'codex', 'Choose Claude Code or Codex.');
+		need(isProjectName(r.project), 'Choose or create a project first.');
+		need(typeof r.prompt === 'string' && r.prompt.trim().length > 0 && r.prompt.length <= 12000, 'Write what the video should be.');
+		need(r.session === undefined || r.session === '' || (typeof r.session === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(r.session)), 'bad conversation id');
+		// A run takes many minutes: keep the Mac awake so the agent does not lose its connection half-way.
+		const awake = powerSaveBlocker.start('prevent-app-suspension');
+		try {
+			await runMake({agent: r.agent as 'claude' | 'codex', project: r.project as string, prompt: (r.prompt as string).trim(), session: (r.session as string | undefined) || ''}, (ev) => e.sender.send('make:event', ev));
+		} finally {
+			powerSaveBlocker.stop(awake);
+		}
+		await engine(['intake', r.project as string]).catch(() => undefined);
+		return true;
+	});
+	ipcMain.handle('make:stop', () => {
+		stopMake();
+		return true;
+	});
+	ipcMain.handle('kit:presets', () => listPresets());
+	ipcMain.handle('kit:guides', () => listGuides());
+	ipcMain.handle('kit:guide', (_e, id: unknown) => {
+		need(typeof id === 'string', 'no such guide');
+		return readGuide(id as string);
+	});
 	ipcMain.handle('create:templates', () => getTemplates());
 	ipcMain.handle('create:render', async (e, req: unknown) => {
 		const r = req as Partial<RenderRequest>;
@@ -237,7 +266,7 @@ const takeShots = async (win: BrowserWindow, dir: string) => {
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 	await wait(1500);
 	const first = listProjects()[0]?.name ?? '';
-	for (const [name, hash] of [['projects', '#projects'], ['assistant', `#assistant/${encodeURIComponent(first)}`], ['record', '#record'], ['deliver', `#deliver/${encodeURIComponent(first)}`], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
+	for (const [name, hash] of [['make', `#make/${encodeURIComponent(first)}`], ['guides', '#guides'], ['guides-prompts', '#guides/prompts'], ['projects', '#projects'], ['assistant', `#assistant/${encodeURIComponent(first)}`], ['record', '#record'], ['deliver', `#deliver/${encodeURIComponent(first)}`], ['edit', `#edit/${encodeURIComponent(first)}`], ['create', '#create/PathStory'], ['project', `#project/${encodeURIComponent(first)}`], ['library', '#library'], ['setup', '#setup']]) {
 		await win.webContents.executeJavaScript(`location.hash = ${JSON.stringify(hash)}`);
 		await wait(name === 'setup' ? 5000 : name === 'edit' ? 6000 : 2200);
 		writeFileSync(join(dir, `${name}.png`), (await win.webContents.capturePage()).toPNG());

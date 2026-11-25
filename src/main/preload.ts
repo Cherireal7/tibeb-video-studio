@@ -43,6 +43,17 @@ contextBridge.exposeInMainWorld('tibeb', {
 		ipcRenderer.on('assistant:event', fn);
 		return () => ipcRenderer.removeListener('assistant:event', fn);
 	},
+	agents: () => call('agents:status'),
+	make: (req: unknown) => call('make:run', req),
+	stopMake: () => call('make:stop'),
+	onMake: (cb: (e: unknown) => void) => {
+		const fn = (_e: unknown, ev: unknown) => cb(ev);
+		ipcRenderer.on('make:event', fn);
+		return () => ipcRenderer.removeListener('make:event', fn);
+	},
+	presets: () => call('kit:presets'),
+	guides: () => call('kit:guides'),
+	guide: (id: string) => call('kit:guide', id),
 	templates: () => call('create:templates'),
 	render: (req: unknown) => call('create:render', req),
 	onRenderProgress: (cb: (p: {percent: number; line: string}) => void) => {

@@ -5,7 +5,10 @@ const EDITORS = [['resolve', 'DaVinci Resolve', 'Live control through the bridge
 export const Setup = () => {
 	const [d, setD] = useState<Doctor | null>(null);
 	const [error, setError] = useState('');
+	const [agents, setAgents] = useState<AgentStatus[]>([]);
+	const [credit, setCredit] = useState('');
 	const load = () => {
+		void window.tibeb.agents().then((a) => { setAgents(a.agents); setCredit(a.credit); });
 		setError('');
 		window.tibeb.doctor().then(setD).catch((e: Error) => setError(e.message));
 	};
@@ -31,6 +34,18 @@ export const Setup = () => {
 							</button>
 						))}
 					</div>
+					<h2>AI agents</h2>
+					<ul className="checks">
+						{agents.map((a) => (
+							<li key={a.id} className={a.installed && a.signedIn ? 'ok' : 'bad'}>
+								<span className="mark" aria-hidden="true">{a.installed && a.signedIn ? '✓' : '!'}</span>
+								<span className="what">{a.label}</span>
+								<span className="dim">{a.detail}{a.version ? ` · ${a.version}` : ''}</span>
+								{a.fix ? <span className="fix">{a.fix}</span> : null}
+							</li>
+						))}
+					</ul>
+					<p className="dim small">One signed-in agent is enough for the Make screen. End credit on new videos: {credit ? `“${credit}”` : 'none'} (change with a line <code>credit=Your text</code> in ~/.config/studio/config; leave it empty for none).</p>
 					<h2>Checks</h2>
 					<ul className="checks">
 						{d.checks.map((c) => (
