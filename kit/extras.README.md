@@ -22,3 +22,6 @@ Whoever set up the studio keeps these in `kit/extras/` on their own Mac (the fol
 Send that zip privately. The teammate unpacks it into their copy of the repository (it recreates `kit/extras/`)
 and runs `./scripts/install.sh`, which installs whatever it finds there. Without the zip the installer offers to
 download "The Motion Setup" from its author's site and skips the rest.
+
+
+Added 2026-11-26: `saas-animation` (product ads as code, with an optional Blender level) and `vox-motion-graphics` (a paper-collage explainer pipeline that spends Higgsfield credits). Both came without an open licence, so they travel in the extras zip only.
